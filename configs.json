@@ -2,7 +2,7 @@
     "RPC": {
         "Arb": "https://1rpc.io/WZojy2kHaKw235pu/arb",
         "Polygon": "https://1rpc.io/WZojy2kHaKw235pu/matic",
-        "Optimism": "https://1rpc.io/3Lnzrv1CiuLp1fxh7/op",
+        "Optimism": "https://1rpc.io/4Pz9TC8954LGSsLUS/op",
         "BSC": "https://1rpc.io/WZojy2kHaKw235pu/bnb",
         "Avax": "https://1rpc.io/WZojy2kHaKw235pu/avax/c",
         "Gnosis": "https://rpc.gnosischain.com/"
@@ -44,6 +44,14 @@
             "Avax": "0x040993fbF458b95871Cd2D73Ee2E09F4AF6d56bB" 
         }
     },
+    "Merkley": {
+        "OFT": {
+            "Arb": "0x8a555e4Fc287650f5E8CA1778A35dd44e893d6Aa",
+            "Optimism": "0x20279b6d57Ba6D3eF852f34800e43e39d46d6487",
+            "Polygon": "0x70ea00ab512d13dac5001c968f8d2263d179e2d2",
+            "Gnosis": "0x54b3297e1C739fe62be5c00473A2e6bb78adB0Ef"
+        }
+    },
     "StableCoins": {
         "USDC": {
             "Arb": "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
@@ -65,6 +73,19 @@
         "BSC": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
         "Avax": "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7"
     },
-    "privateKey": "",
-    "inAmountStr": "1.5"
+    "SwapAmount": {
+        "Normal": "4.5",
+        "Gnosis": "1.1"
+    },
+    "MinMax": {
+        "Normal": {
+            "Min": 3,
+            "Max": 7
+        },
+        "Gnosis": {
+            "Min": 1,
+            "Max": 3
+        }
+    },
+    "privateKey": ""
 }

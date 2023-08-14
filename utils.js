@@ -83,6 +83,31 @@ async function getBalance(provider, contractAddress, walletAddress) {
     return { formatted, unformattedBalance };
 }
 
+async function attemptBridge(provider, chain, balance, usd) {
+  try {
+      await sleep(1,2);
+      const validChains = ["Arb", "Optimism", "Polygon"];
+      console.log(`\n${chain} is currently not supported. Choosing random chain to bridge to...`);
+      await sleep(1,2);
+      const index = await getRandomNumber(0,2);
+      const chainToUse = validChains[index];
+      console.log(`   ${chainToUse} selected. Bridging...\n`);
+      await bridge(provider, chain, balance, usd, chainToUse, 0);
+
+  } catch (e) {
+      if (e instanceof USDBridgingError) {
+          if (e.retries >= MAX_RETRIES) {
+              console.log("failed");
+              throw new Error("Exceeded maximum number of attempts");
+          }
+          await bridge(e.provider, e.srcChain, e.balanceUSD, e.srcUSD, e.destChain, e.retries)
+      }
+      else {
+          console.log('An unexpected error occurred:', e);
+      }
+  }
+}
+
 async function bridge(provider, srcChain, balanceUSD, srcUSD, destChain, retries) {
     const usdAddr = StableCoins[srcUSD][srcChain];
     const sgAddr = Stargate["Addr"][srcChain];
@@ -183,6 +208,7 @@ module.exports = {
     sleep,
     getRandomNumber,
     determineChain,
-    bridge,
-    USDBridgingError,
+    // bridge,
+    attemptBridge,
+    // USDBridgingError,
 };

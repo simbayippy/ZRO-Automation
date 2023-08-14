@@ -21,6 +21,24 @@ const chainToFee = {
 const destChains = [176,116,155,173,167,177,126,125,175,159];
 const destChainsGnosis = [125, 138, 150];
 
+async function attemptL2Marathon(chain, provider, min, max) {
+    try {
+        await L2marathon(chain, provider, min, max, 0);
+    } catch (e) {
+        if (e.retries >= MAX_RETRIES) {
+            console.log("Exceeded maximum number of attempts");
+            return;
+        }
+        if (e instanceof MintingError) {
+            await L2marathon(chain, provider, min, max, e.retries);
+        } else if (e instanceof BridgingError) {
+            await onlyBridge(chain, provider, e.times - 1, e.id, e.retries)
+        } else {
+            console.log(e);
+        }
+    }
+}
+
 async function L2marathon(chain, provider, min, max, retries) {
     // Check if the provided chain is valid
     if (!(chain in chainToAddress)) {
@@ -265,8 +283,8 @@ class BridgingError extends Error {
 }
 
 module.exports = {
-    L2marathon,
-    onlyBridge,
+    attemptL2Marathon,
+    // L2marathon,
     MintingError,
     BridgingError,
 };

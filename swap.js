@@ -5,8 +5,8 @@ const IUniswapV3Pool = require('@uniswap/v3-core/artifacts/contracts/interfaces/
 const IUniswapV3Factory = require('@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Factory.sol/IUniswapV3Factory.json');
 const QuoterABI = require('@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json');
 const { BigNumber } = require('@ethersproject/bignumber');
-const { privateKey, inAmountStr } = require('./configs.json');
-const { sleep } = require('./utils');
+const { privateKey, SwapAmount } = require('./configs.json');
+const { sleep, getRandomNumber } = require('./utils');
 
 const ERC20_abi = require("./abis/ERC20_abi.json");
 const WNative_abi = require("./abis/wnative_abi.json");
@@ -16,7 +16,31 @@ const UNISWAP_FACTORY_ADDRESS = '0x1F98431c8aD98523631AE4a59f267346ea31F984';
 const UNISWAP_QUOTER_ADDRESS = '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6'
 const V3_SWAP_ROUTER_ADDRESS = '0xe592427a0aece92de3edee1f18e0157c05861564';
 
-async function swap(provider, usdAddress, nativeAddress, retries) {
+
+async function attemptSwap(provider, usdAddr, nativeAddr) {
+    try {
+        await swap(provider, usdAddr, nativeAddr, 0);
+    } catch (e) {
+        if (e.retries >= 2) {
+            console.log("Exceeded maximum number of attempts");
+            return;
+        }
+
+        if (e instanceof SwapError) {
+            await swap(provider, usdAddr, nativeAddr, e.retries);
+        } else {
+            console.log(e);
+        }
+    }
+}
+
+async function swap(chain, provider, usdAddress, nativeAddress, retries) {
+    let inAmountStr;
+    if (chain === "Gnosis") {
+        inAmountStr = SwapAmount["Gnosis"];
+    } else {
+        inAmountStr = SwapAmount["Normal"]
+    }
     const wallet = new ethers.Wallet(privateKey, provider);
     const walletAddress = wallet.address;
 
@@ -274,7 +298,10 @@ async function checkAllowance(contractIn, chainId, wallet, provider, retries) {
         console.log("   allowance already set\n");
         return;
     }
-    const amtToApprove = 999999999999;
+    console.log(`   allowance not set. setting allowance...`)
+    const amtToApprove = getRandomNumber(999999999, 999999999999)
+
+    // const amtToApprove = 999999999999;
     const approveTxUnsigned = await contractIn.populateTransaction.approve(V3_SWAP_ROUTER_ADDRESS, amtToApprove);
     // by default chainid is not set https://ethereum.stackexchange.com/questions/94412/valueerror-code-32000-message-only-replay-protected-eip-155-transac
     approveTxUnsigned.chainId = chainId;
@@ -310,7 +337,8 @@ class SwapError extends Error {
 }
 
 module.exports = {
-    swap,
+    attemptSwap,
+    // swap,
     sleep,
     SwapError
 };

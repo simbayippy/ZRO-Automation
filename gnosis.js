@@ -1,35 +1,32 @@
 const { ethers } = require("ethers");
-const { swap, SwapError } = require('./swap');
-const { RPC, Chain, Bungee, privateKey, StableCoins, WNative } = require('./configs.json');
-const { L2marathon, onlyBridge, MintingError, BridgingError } = require('./L2marathon');
-const { sleep, getRandomNumber, determineChain, bridge, USDBridgingError } = require('./utils');
+const { attemptSwap } = require('./swap');
+const { RPC, Chain, Bungee, privateKey } = require('./configs.json');
+const { attemptL2Marathon } = require('./L2marathonDetails');
+const { determineChain, getRandomNumber } = require('./utils');
+const { attemptMerkleyOFT } = require("./merkley");
 const { BigNumber } = require('@ethersproject/bignumber');
 
-const ERC20_abi = require("./abis/ERC20_abi.json");
 const bungee_abi = require("./abis/bungee_abi.json");
 
-// firstly, swap 1 usdc -> native
-// then, bungee refill -> gnosis
-
-const MAX_RETRIES = 2;
-
-async function gnosis() {
+async function gnosis(min, max) {
     const chain = "Gnosis";
     const gnosisProvider = new ethers.providers.JsonRpcProvider(RPC[chain], Chain[chain]);
     const walletGnosis = new ethers.Wallet(privateKey, gnosisProvider);
     const gnosisBalance = BigNumber.from(await gnosisProvider.getBalance(walletGnosis.address));
     if (gnosisBalance.gte(BigNumber.from("500000000000000000"))) {
-        await L2marathon(chain, gnosisProvider, 1, 3, 0);
+        // if balance is already more than 0.5 cents
+        await L2marathon(chain, gnosisProvider, 1, 2, 0);
         return;
     }
 
     let info = await determineChain();
-    await attemptSwap(info.highestChainProvider, info.usdAddr, info.nativeAddr);     
+    await attemptSwap("Gnosis", info.highestChainProvider, info.usdAddr, info.nativeAddr);     
     const wallet = new ethers.Wallet(privateKey, info.highestChainProvider);
     const walletAddress = wallet.address;
     const bungeeAddr = Bungee["Addr"][info.highestChain];
     const bungeeContract = new ethers.Contract(bungeeAddr, bungee_abi, info.highestChainProvider);
     const contractWithSigner = await bungeeContract.connect(wallet);
+    console.log("Connected to bungee...")
 
     let valueInput = 0;
     if (info.highestChain === "Arb" || info.highestChain === "Optimism") {
@@ -45,6 +42,7 @@ async function gnosis() {
         const etherAmount = await getRandomDecimal(0.0606, 0.089);
         valueInput = ethers.utils.parseEther(etherAmount.toString());    
     }
+    console.log(`   refilling to Gnosis from ${info.highestChain}, using ${valueInput}native`)
 
     const gasPrice = await info.highestChainProvider.getGasPrice();
     const maxPriorityFeePerGas = gasPrice.mul(10).div(12);
@@ -62,38 +60,13 @@ async function gnosis() {
 
     await waitArrival(walletAddress);
 
-    try {
-        await L2marathon(chain, gnosisProvider, 1, 3, 0);
-    } catch (e) {
-        if (e.retries >= 2) {
-            console.log("Exceeded maximum number of attempts");
-            return;
-        }
-        if (e instanceof MintingError) {
-            await L2marathon(chain, provider, 1, 3, e.retries);
-        } else if (e instanceof BridgingError) {
-            await onlyBridge(chain, provider, e.times - 1, e.id, e.retries)
-        } else {
-            console.log(e);
-        }
+    const int = await getRandomNumber(0,1);
+    if (int === 0) {
+        await attemptL2Marathon(chain, gnosisProvider, min, max);
+    } else {
+        await attemptMerkleyOFT(chain, gnosisProvider, min, max);
     }
-}
 
-async function attemptSwap(provider, usdAddr, nativeAddr) {
-    try {
-        await swap(provider, usdAddr, nativeAddr, 0);
-    } catch (e) {
-        if (e.retries >= MAX_RETRIES) {
-            console.log("Exceeded maximum number of attempts");
-            return;
-        }
-
-        if (e instanceof SwapError) {
-            await swap(provider, usdAddr, nativeAddr, e.retries);
-        } else {
-            console.log(e);
-        }
-    }
 }
 
 async function waitArrival(walletAddress) {
@@ -112,6 +85,8 @@ async function waitArrival(walletAddress) {
             await new Promise(resolve => setTimeout(resolve, 60000)); // Wait for 1 minute
         }
     }
+
+    console.log(`${await provider.getBalance(walletAddress)} xDai reached Gnosis\n`)
 }
 
 async function getRandomDecimal(min, max) {
@@ -129,5 +104,6 @@ async function getRandomDecimal(min, max) {
     return result;
 }
 
-// waitArrival("0x48effb193084197000f280fa751c993444e79f04");
-gnosis()
+module.exports = {
+    gnosis,
+};
