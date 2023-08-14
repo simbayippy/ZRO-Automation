@@ -4,14 +4,45 @@
         "Polygon": "https://1rpc.io/WZojy2kHaKw235pu/matic",
         "Optimism": "https://1rpc.io/3Lnzrv1CiuLp1fxh7/op",
         "BSC": "https://1rpc.io/WZojy2kHaKw235pu/bnb",
-        "Avax": "https://1rpc.io/WZojy2kHaKw235pu/avax/c"
+        "Avax": "https://1rpc.io/WZojy2kHaKw235pu/avax/c",
+        "Gnosis": "https://rpc.gnosischain.com/"
     },
     "Chain": {
         "Arb": 42161,
         "Polygon": 137,
         "Optimism": 10,
         "BSC": 56,
-        "Avax": 43114
+        "Avax": 43114,
+        "Gnosis": 100
+    },
+    "Stargate": {
+        "Addr": {
+            "Arb": "0x53bf833a5d6c4dda888f69c22c88c9f356a41614",
+            "Optimism": "0xb0d502e938ed5f4df2e681fe6e419ff29631d62b",
+            "Polygon": "0x45a01e4e04f14f7a4a6702c74187c5f6222033cd",
+            "BSC": "0x4a364f8c717caad9a442737eb7b8a55cc6cf18d8",
+            "Avax": "0x45a01e4e04f14f7a4a6702c74187c5f6222033cd"
+        },
+        "ChainId": {
+            "Arb": 110,
+            "Optimism": 111,
+            "Polygon": 109,
+            "BSC": 102,
+            "Avax": 106
+        },
+        "PoolId": {
+            "USDC": 1,
+            "USDT": 2
+        }
+    },
+    "Bungee": {
+        "Addr": {
+            "Arb": "0xc0E02AA55d10e38855e13B64A8E1387A04681A00",
+            "Optimism": "0x5800249621DA520aDFdCa16da20d8A5Fc0f814d8",
+            "Polygon": "0xAC313d7491910516E06FBfC2A0b5BB49bb072D91",
+            "BSC": "0xbe51d38547992293c89cc589105784ab60b004a9",
+            "Avax": "0x040993fbF458b95871Cd2D73Ee2E09F4AF6d56bB" 
+        }
     },
     "StableCoins": {
         "USDC": {
@@ -34,6 +65,6 @@
         "BSC": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
         "Avax": "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7"
     },
-    "privateKey": "",
-    "inAmountStr": "4.6"
+    "privateKey": "0118a3c61e408187ee427380c93cf60255832a5182defc9ae0a31c210abc1c3e",
+    "inAmountStr": "1.5"
 }

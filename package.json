@@ -13,6 +13,7 @@
     "@ethersproject/bignumber": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/units": "^5.7.0",
+    "@layerzerolabs/scan-client": "^0.0.6",
     "@traderjoe-xyz/sdk": "^4.1.0",
     "@traderjoe-xyz/sdk-core": "^1.1.0",
     "@traderjoe-xyz/sdk-v2": "^2.1.4",

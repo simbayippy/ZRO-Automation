@@ -16,7 +16,7 @@ const UNISWAP_FACTORY_ADDRESS = '0x1F98431c8aD98523631AE4a59f267346ea31F984';
 const UNISWAP_QUOTER_ADDRESS = '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6'
 const V3_SWAP_ROUTER_ADDRESS = '0xe592427a0aece92de3edee1f18e0157c05861564';
 
-async function arbSwap(provider, usdAddress, nativeAddress, retries) {
+async function swap(provider, usdAddress, nativeAddress, retries) {
     const wallet = new ethers.Wallet(privateKey, provider);
     const walletAddress = wallet.address;
 
@@ -120,7 +120,7 @@ async function arbSwap(provider, usdAddress, nativeAddress, retries) {
 
     console.log('Swap completed successfully!\n');
     console.log('Updated balances:');
-    console.log("   ETH: ", ethers.utils.formatEther(await provider.getBalance(walletAddress)));
+    console.log("   Native: ", ethers.utils.formatEther(await provider.getBalance(walletAddress)));
     console.log(`   ${tokenIn.symbol}: ${ethers.utils.formatUnits(newBalanceIn, tokenIn.decimals)}`);
     console.log(`   ${tokenOut.symbol}: ${ethers.utils.formatUnits(newBalanceOut, tokenOut.decimals)}\n`);
 
@@ -154,11 +154,11 @@ async function arbSwap(provider, usdAddress, nativeAddress, retries) {
     ]);
 
     console.log('Updated balances:');
-    console.log("   ETH: ", ethers.utils.formatEther(await provider.getBalance(walletAddress)));
+    console.log("   Native: ", ethers.utils.formatEther(await provider.getBalance(walletAddress)));
     console.log(`   ${tokenIn.symbol}: ${ethers.utils.formatUnits(newBalanceIn, tokenIn.decimals)}`);
     console.log(`   ${tokenOut.symbol}: ${ethers.utils.formatUnits(newBalanceOut, tokenOut.decimals)}\n`);
 
-    console.log("Swapping done. Moving on to L2marathon\n")
+    console.log("Swapping done.\n")
 }
 
 async function uniswapPool(tokenIn, tokenOut, provider) {
@@ -310,7 +310,7 @@ class SwapError extends Error {
 }
 
 module.exports = {
-    arbSwap,
+    swap,
     sleep,
     SwapError
 };

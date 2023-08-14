@@ -1,29 +1,27 @@
 const { ethers } = require("ethers");
 const { privateKey } = require('./configs.json');
 const { BigNumber } = require('@ethersproject/bignumber');
-const { sleep } = require('./utils');
+const { sleep, getRandomNumber } = require('./utils');
 
 // constants for L2marathon
 const L2marathon_abi = require("./abis/L2marathon_abi.json");
-const L2marathonAddrArb = "0x60aED56615849e51Faf98E585A71b6FE7452F360";
-const L2marathonAddrPoly = "0x8A0536f8cd536286565EcDF891f0e207234D1F56";
-const L2marathonAddrOp = "0x841Ce2611371E2db9eB49DdA783Ec67654f6818A";
 const chainToAddress = {
-    "Arb": L2marathonAddrArb,
-    "Polygon": L2marathonAddrPoly,
-    "Optimism": L2marathonAddrOp,
+    "Arb": "0x60aED56615849e51Faf98E585A71b6FE7452F360",
+    "Polygon": "0x8A0536f8cd536286565EcDF891f0e207234D1F56",
+    "Optimism": "0x841Ce2611371E2db9eB49DdA783Ec67654f6818A",
+    "Gnosis": "0x3bb247ca67B5a23D25F7FAAdC4c28E1332Aa1489"
 };
-const feeArbnOp = "0.00033";
-const feePoly = "0.66";
 const chainToFee = {
-    "Arb": feeArbnOp,
-    "Polygon": feePoly,
-    "Optimism": feeArbnOp,
+    "Arb": "0.00033",
+    "Polygon": "0.66",
+    "Optimism": "0.00033",
+    "Gnosis": "0.2",
 };
 // the destination chains that are cheapest and not already included in co-pilot
 const destChains = [176,116,155,173,167,177,126,125,175,159];
+const destChainsGnosis = [125, 138, 150];
 
-async function L2marathon(chain, provider, retries) {
+async function L2marathon(chain, provider, min, max, retries) {
     // Check if the provided chain is valid
     if (!(chain in chainToAddress)) {
         throw new Error(`Invalid chain: ${chain}. Must be one of "Arb", "Poly", or "Optimism".`);
@@ -36,7 +34,7 @@ async function L2marathon(chain, provider, retries) {
     const wallet = new ethers.Wallet(privateKey, provider);
     const walletAddress = wallet.address;
 
-    const times = await getRandomNumber(4,7);
+    const times = await getRandomNumber(min,max);
 
     await sleep(0,2);
 
@@ -93,7 +91,14 @@ async function L2marathon(chain, provider, retries) {
         [1, 300000] // 1 is version, next argument is gaslimit
     )
 
-    const destChainsToUse = await getRandomElementsFromArray(times); // array of chains to send to
+    // const destChainsToUse = await getRandomElementsFromArray(times); // array of chains to send to
+    let destChainsToUse;
+    if (chain === "Gnosis") {
+        destChainsToUse = await getRandomElementsFromArrayGnosis(times);
+    } else {
+        destChainsToUse = await getRandomElementsFromArray(times);
+
+    }
     console.log("   Destination chains selected:", destChainsToUse +"\n");
 
     const adapterArray = []
@@ -131,11 +136,11 @@ async function L2marathon(chain, provider, retries) {
         const receiptBridge = await txBridge.wait();
         // if tx fails this doesn't actually reach lol
         if (receiptBridge.status === 0) {
-            throw new BridgingError('Bridging transaction failed', chain, provider, times, startId, 1);
+            throw new BridgingError('Bridging transaction failed', times, startId, 1);
         }
         console.log("Successfully Bridged! Transaction Hash:", txBridge.hash);
     } catch (e) {
-        throw new BridgingError("Bridge transaction failed", chain, provider, times, startId, 1);
+        throw new BridgingError("Bridge transaction failed", times, startId, 1);
     }
 }
 
@@ -210,19 +215,15 @@ async function onlyBridge(chain, provider, int, start, retries) {
         // if tx fails this doesn't actually reach lol
         if (receiptBridge.status === 0) {
             console.log("here first");
-            throw new BridgingError("Bridge transaction failed", chain, provider, times, startId, retries + 1);
+            throw new BridgingError("Bridge transaction failed", times, startId, retries + 1);
         } 
         console.log("Successfully Bridged! Transaction Hash:", txBridge.hash, "\n");
     } catch(e) {
         console.log(e);
-        throw new BridgingError("Bridge transaction failed", chain, provider, times, startId, retries + 1);
+        throw new BridgingError("Bridge transaction failed", times, startId, retries + 1);
     }
 }
 
-async function getRandomNumber(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-  
 async function getRandomElementsFromArray(numElements) {
     if (numElements > destChains.length) {
         throw new Error('Number of elements requested is greater than the array length');
@@ -231,6 +232,16 @@ async function getRandomElementsFromArray(numElements) {
     await sleep(1,2);
     const shuffledArray = destChains.slice().sort(() => Math.random() - 0.5);
     return shuffledArray.slice(0, numElements);
+}
+
+async function getRandomElementsFromArrayGnosis(numElements) {
+    if (numElements > destChainsGnosis.length) {
+        throw new Error('Number of elements requested is greater than the array length');
+    }
+    console.log("Randomly selecting destination chains to use...");
+    await sleep(1,2);
+    const shuffledArray = destChainsGnosis.slice().sort(() => Math.random() - 0.5);
+    return shuffledArray.slice(0, numElements); 
 }
 
 class MintingError extends Error {
@@ -242,11 +253,11 @@ class MintingError extends Error {
 }
 
 class BridgingError extends Error {
-    constructor(message, chain, provider, times, id, retries) {
+    constructor(message, times, id, retries) {
         super(message);
         this.name = 'BridgingError';
-        this.chain = chain;
-        this.provider = provider;
+        // this.chain = chain;
+        // this.provider = provider;
         this.times = times;
         this.id = id;
         this.retries = retries;
