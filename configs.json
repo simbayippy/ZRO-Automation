@@ -1,4 +1,19 @@
 {
+    "privateKey": "",
+    "SwapAmount": {
+        "Normal": "4.5",
+        "Gnosis": "1.1"
+    },
+    "MinMax": {
+        "Normal": {
+            "Min": 3,
+            "Max": 7
+        },
+        "Gnosis": {
+            "Min": 1,
+            "Max": 3
+        }
+    },
     "RPC": {
         "Arb": "https://1rpc.io/WZojy2kHaKw235pu/arb",
         "Polygon": "https://1rpc.io/WZojy2kHaKw235pu/matic",
@@ -72,20 +87,5 @@
         "Optimism": "0x4200000000000000000000000000000000000006",
         "BSC": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
         "Avax": "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7"
-    },
-    "SwapAmount": {
-        "Normal": "4.5",
-        "Gnosis": "1.1"
-    },
-    "MinMax": {
-        "Normal": {
-            "Min": 3,
-            "Max": 7
-        },
-        "Gnosis": {
-            "Min": 1,
-            "Max": 3
-        }
-    },
-    "privateKey": ""
+    }
 }
