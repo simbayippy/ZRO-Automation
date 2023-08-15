@@ -1,5 +1,5 @@
 const { ethers } = require("ethers");
-const { privateKey } = require('./configs.json');
+// const { privateKey } = require('./configs.json');
 const { BigNumber } = require('@ethersproject/bignumber');
 const { sleep, getRandomNumber } = require('./utils');
 
@@ -21,25 +21,27 @@ const chainToFee = {
 const destChains = [176,116,155,173,167,177,126,125,175,159];
 const destChainsGnosis = [125, 138, 150];
 
-async function attemptL2Marathon(chain, provider, min, max) {
+const MAX_RETRIES = 2;
+
+async function attemptL2Marathon(privateKey, chain, provider, min, max) {
     try {
-        await L2marathon(chain, provider, min, max, 0);
+        await L2marathon(privateKey, chain, provider, min, max, 0);
     } catch (e) {
         if (e.retries >= MAX_RETRIES) {
             console.log("Exceeded maximum number of attempts");
             return;
         }
         if (e instanceof MintingError) {
-            await L2marathon(chain, provider, min, max, e.retries);
+            await L2marathon(privateKey, chain, provider, min, max, e.retries);
         } else if (e instanceof BridgingError) {
-            await onlyBridge(chain, provider, e.times - 1, e.id, e.retries)
+            await onlyBridge(privateKey, chain, provider, e.times - 1, e.id, e.retries)
         } else {
             console.log(e);
         }
     }
 }
 
-async function L2marathon(chain, provider, min, max, retries) {
+async function L2marathon(privateKey, chain, provider, min, max, retries) {
     // Check if the provided chain is valid
     if (!(chain in chainToAddress)) {
         throw new Error(`Invalid chain: ${chain}. Must be one of "Arb", "Poly", or "Optimism".`);
@@ -162,7 +164,7 @@ async function L2marathon(chain, provider, min, max, retries) {
     }
 }
 
-async function onlyBridge(chain, provider, int, start, retries) {
+async function onlyBridge(privateKey, chain, provider, int, start, retries) {
     if (!(chain in chainToAddress)) {
         throw new Error(`Invalid chain: ${chain}. Must be one of "Arb", "Poly", or "Optimism".`);
     }

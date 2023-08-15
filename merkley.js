@@ -1,5 +1,5 @@
 const { ethers } = require("ethers");
-const { Merkley, privateKey } = require('./configs.json');
+const { Merkley } = require('./configs.json');
 const { getRandomNumber, sleep } = require('./utils');
 const { BigNumber } = require('@ethersproject/bignumber');
 
@@ -16,25 +16,25 @@ const chainToFee = {
 const destChains = [175, 155, 125, 116, 126, 153, 177, 176];
 const destChainsGnosis = [125, 138, 150];
 
-async function attemptMerkleyOFT(chain, provider, min, max) {
+async function attemptMerkleyOFT(privateKey, chain, provider, min, max) {
     try {
-        await merkleyOFT(chain, provider, min, max, 0);
+        await merkleyOFT(privateKey, chain, provider, min, max, 0);
     } catch (e) {
         if (e.retries >= MAX_RETRIES) {
             console.log("Exceeded maximum number of attempts");
             return;
         }
         if (e instanceof MintingError) {
-            await merkleyOFT(chain, provider, min, max, e.retries);
+            await merkleyOFT(privateKey, chain, provider, min, max, e.retries);
         } else if (e instanceof BridgingError) {
-            await onlyBridge(chain, provider, e.times - 1, e.retries)
+            await onlyBridge(privateKey, chain, provider, e.times - 1, e.retries)
         } else {
             console.log(e);
         }
     }
 }
 
-async function merkleyOFT(chain, provider, min, max, retries) {  
+async function merkleyOFT(privateKey, chain, provider, min, max, retries) {  
     const wallet = new ethers.Wallet(privateKey, provider);
     const walletAddress = wallet.address;
     const merkleyOFTAddr = Merkley["OFT"][chain];
@@ -117,7 +117,7 @@ async function merkleyOFT(chain, provider, min, max, retries) {
     }
 }
 
-async function onlyBridge(chain, provider, int, retries) {
+async function onlyBridge(privateKey, chain, provider, int, retries) {
     const wallet = new ethers.Wallet(privateKey, provider);
     const walletAddress = wallet.address;
     const merkleyOFTAddr = Merkley["OFT"][chain];
@@ -173,7 +173,7 @@ async function onlyBridge(chain, provider, int, retries) {
         console.log("Successfully Bridged all!");
     } catch (e) {
         console.log("bridge error: ", e)
-        throw new BridgingError("Bridge transaction failed", times, 1);
+        throw new BridgingError("Bridge transaction failed", times, retries + 1);
     }
 }
 

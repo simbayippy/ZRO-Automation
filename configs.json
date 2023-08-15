@@ -1,5 +1,4 @@
 {
-    "privateKey": "",
     "SwapAmount": {
         "Normal": "4.5",
         "Gnosis": "1.1"
@@ -18,7 +17,7 @@
         "Arb": "https://1rpc.io/WZojy2kHaKw235pu/arb",
         "Polygon": "https://1rpc.io/WZojy2kHaKw235pu/matic",
         "Optimism": "https://1rpc.io/4Pz9TC8954LGSsLUS/op",
-        "BSC": "https://1rpc.io/WZojy2kHaKw235pu/bnb",
+        "BSC": "https://1rpc.io/4Pz9TC8954LGSsLUS/bnb",
         "Avax": "https://1rpc.io/WZojy2kHaKw235pu/avax/c",
         "Gnosis": "https://rpc.gnosischain.com/"
     },

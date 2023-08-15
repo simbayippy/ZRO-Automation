@@ -1,6 +1,6 @@
 const { ethers } = require("ethers");
 const { attemptSwap } = require('./swap');
-const { RPC, Chain, Bungee, privateKey } = require('./configs.json');
+const { RPC, Chain, Bungee } = require('./configs.json');
 const { attemptL2Marathon } = require('./L2marathonDetails');
 const { determineChain, getRandomNumber } = require('./utils');
 const { attemptMerkleyOFT } = require("./merkley");
@@ -8,19 +8,19 @@ const { BigNumber } = require('@ethersproject/bignumber');
 
 const bungee_abi = require("./abis/bungee_abi.json");
 
-async function gnosis(min, max) {
+async function gnosis(privateKey, min, max) {
     const chain = "Gnosis";
     const gnosisProvider = new ethers.providers.JsonRpcProvider(RPC[chain], Chain[chain]);
     const walletGnosis = new ethers.Wallet(privateKey, gnosisProvider);
     const gnosisBalance = BigNumber.from(await gnosisProvider.getBalance(walletGnosis.address));
     if (gnosisBalance.gte(BigNumber.from("500000000000000000"))) {
         // if balance is already more than 0.5 cents
-        await L2marathon(chain, gnosisProvider, 1, 2, 0);
+        await attemptL2Marathon(privateKey, chain, gnosisProvider, 1, 2);
         return;
     }
 
-    let info = await determineChain();
-    await attemptSwap("Gnosis", info.highestChainProvider, info.usdAddr, info.nativeAddr);     
+    let info = await determineChain(privateKey);
+    await attemptSwap(privateKey, "Gnosis", info.highestChainProvider, info.usdAddr, info.nativeAddr);     
     const wallet = new ethers.Wallet(privateKey, info.highestChainProvider);
     const walletAddress = wallet.address;
     const bungeeAddr = Bungee["Addr"][info.highestChain];
@@ -62,9 +62,9 @@ async function gnosis(min, max) {
 
     const int = await getRandomNumber(0,1);
     if (int === 0) {
-        await attemptL2Marathon(chain, gnosisProvider, min, max);
+        await attemptL2Marathon(privateKey, chain, gnosisProvider, min, max);
     } else {
-        await attemptMerkleyOFT(chain, gnosisProvider, min, max);
+        await attemptMerkleyOFT(privateKey, chain, gnosisProvider, min, max);
     }
 
 }

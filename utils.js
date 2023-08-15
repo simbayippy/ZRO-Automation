@@ -1,10 +1,11 @@
 const { ethers } = require("ethers");
-const { RPC, Chain, Stargate, privateKey, StableCoins, WNative } = require('./configs.json');
+const { RPC, Chain, Stargate, StableCoins, WNative } = require('./configs.json');
 const {waitForMessageReceived} = require('@layerzerolabs/scan-client');
 const { BigNumber } = require('@ethersproject/bignumber');
 
 const ERC20_abi = require("./abis/ERC20_abi.json");
 const sg_abi = require("./abis/stargate_abi.json");
+const MAX_RETRIES = 2;
 
 async function sleep(minSeconds, maxSeconds) {
     const randomSeconds = Math.random() * (maxSeconds - minSeconds) + minSeconds;
@@ -21,7 +22,7 @@ async function getRandomNumber(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-async function determineChain() {
+async function determineChain(privateKey) {
     const providers = [];
     const chains = [];
     for (chainName of Object.keys(RPC)) {
@@ -83,7 +84,7 @@ async function getBalance(provider, contractAddress, walletAddress) {
     return { formatted, unformattedBalance };
 }
 
-async function attemptBridge(provider, chain, balance, usd) {
+async function attemptBridge(privateKey, provider, chain, balance, usd) {
   try {
       await sleep(1,2);
       const validChains = ["Arb", "Optimism", "Polygon"];
@@ -92,7 +93,7 @@ async function attemptBridge(provider, chain, balance, usd) {
       const index = await getRandomNumber(0,2);
       const chainToUse = validChains[index];
       console.log(`   ${chainToUse} selected. Bridging...\n`);
-      await bridge(provider, chain, balance, usd, chainToUse, 0);
+      await bridge(privateKey, provider, chain, balance, usd, chainToUse, 0);
 
   } catch (e) {
       if (e instanceof USDBridgingError) {
@@ -100,7 +101,7 @@ async function attemptBridge(provider, chain, balance, usd) {
               console.log("failed");
               throw new Error("Exceeded maximum number of attempts");
           }
-          await bridge(e.provider, e.srcChain, e.balanceUSD, e.srcUSD, e.destChain, e.retries)
+          await bridge(privateKey, e.provider, e.srcChain, e.balanceUSD, e.srcUSD, e.destChain, e.retries)
       }
       else {
           console.log('An unexpected error occurred:', e);
@@ -108,12 +109,11 @@ async function attemptBridge(provider, chain, balance, usd) {
   }
 }
 
-async function bridge(provider, srcChain, balanceUSD, srcUSD, destChain, retries) {
+async function bridge(privateKey, provider, srcChain, balanceUSD, srcUSD, destChain, retries) {
     const usdAddr = StableCoins[srcUSD][srcChain];
     const sgAddr = Stargate["Addr"][srcChain];
     const sgSrcChainId = Stargate["ChainId"][srcChain]
     const sgDestChainId = Stargate["ChainId"][destChain];
-    // const minOutput = Math.floor(balanceUSD * (0.995));
     const originalAmount = BigNumber.from(balanceUSD.toString()); // Convert balanceUSD to string
     const minOutput = originalAmount.mul(BigNumber.from('995')).div(BigNumber.from('1000'));
 
@@ -149,7 +149,9 @@ async function bridge(provider, srcChain, balanceUSD, srcUSD, destChain, retries
           { dstGasForCall: 0, dstNativeAmount: 0, dstNativeAddr: "0x" },   // lzTxObj
           walletAddress, 
           "0x", // no payload
-          { value: feeWei }  // <------ feeWei from quoteData[0] from quoteLayerZeroFee()   
+          { 
+            value: feeWei
+          }  // <------ feeWei from quoteData[0] from quoteLayerZeroFee()   
       )
       await tx.wait();
       console.log(`Bridge successful. Transaction hash: ${tx.hash}`)
@@ -168,16 +170,24 @@ async function checkAllowance(contractIn, provider, spender, balanceUSD, wallet,
   const walletAddress = wallet.address;
   const usdContract = new ethers.Contract(contractIn, ERC20_abi, provider);
   const contractWithSigner = await usdContract.connect(wallet);
-
+  
   const allowanceIn = await contractWithSigner.allowance(walletAddress, spender);
-  if (allowanceIn > balanceUSD) {
-      console.log("   allowance already set\n");
-      return;
-  }
-  console.log(`   allowance not set. setting allowance...`)
-  const amtToApprove = getRandomNumber(999999999, 999999999999)
+  const desiredAllowance = BigNumber.from("115792089237316195423570985008687907853269984665640564039457584007913129639935");
+  const checkAllowanceBenchmark = BigNumber.from("115792089237316195423570985008687907853269984665640394575");
+
+  if (allowanceIn.gt(checkAllowanceBenchmark)) {
+    console.log("   Allowance already sufficient\n");
+    return;
+  } 
+  console.log("   Allowance not sufficient. Setting allowance...");
+
   try {
-    const tx = await contractWithSigner.approve(spender, amtToApprove);
+    const gasPrice = await provider.getGasPrice();
+    const maxPriorityFeePerGas = gasPrice.mul(10).div(12);
+    const tx = await contractWithSigner.approve(spender, desiredAllowance, {
+      maxFeePerGas: gasPrice,
+      maxPriorityFeePerGas: maxPriorityFeePerGas
+    });
     const receipt = await tx.wait();
     if (receipt.status === 0)
         throw new SwapError("Approve transaction failed", retries + 1);
@@ -187,8 +197,9 @@ async function checkAllowance(contractIn, provider, spender, balanceUSD, wallet,
     if (retries >= 2) {
       throw new Error("Failed");
     }
+    console.log(e)
     console.log("Set allowance failed. Retrying...");
-    checkAllowance(contractWithSigner, spender, balanceUSD, walletAddress, retries + 1);
+    checkAllowance(contractIn, provider, spender, balanceUSD, wallet, retries + 1);
   }
 }
 
@@ -203,6 +214,8 @@ class USDBridgingError extends Error {
       this.destChain = destChain;
   }
 }
+
+
 
 module.exports = {
     sleep,

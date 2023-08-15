@@ -5,7 +5,7 @@ const IUniswapV3Pool = require('@uniswap/v3-core/artifacts/contracts/interfaces/
 const IUniswapV3Factory = require('@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Factory.sol/IUniswapV3Factory.json');
 const QuoterABI = require('@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json');
 const { BigNumber } = require('@ethersproject/bignumber');
-const { privateKey, SwapAmount } = require('./configs.json');
+const { SwapAmount } = require('./configs.json');
 const { sleep, getRandomNumber } = require('./utils');
 
 const ERC20_abi = require("./abis/ERC20_abi.json");
@@ -17,9 +17,9 @@ const UNISWAP_QUOTER_ADDRESS = '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6'
 const V3_SWAP_ROUTER_ADDRESS = '0xe592427a0aece92de3edee1f18e0157c05861564';
 
 
-async function attemptSwap(provider, usdAddr, nativeAddr) {
+async function attemptSwap(privateKey, chain, provider, usdAddr, nativeAddr) {
     try {
-        await swap(provider, usdAddr, nativeAddr, 0);
+        await swap(privateKey, chain, provider, usdAddr, nativeAddr, 0);
     } catch (e) {
         if (e.retries >= 2) {
             console.log("Exceeded maximum number of attempts");
@@ -27,14 +27,14 @@ async function attemptSwap(provider, usdAddr, nativeAddr) {
         }
 
         if (e instanceof SwapError) {
-            await swap(provider, usdAddr, nativeAddr, e.retries);
+            await swap(privateKey, chain, provider, usdAddr, nativeAddr, e.retries);
         } else {
             console.log(e);
         }
     }
 }
 
-async function swap(chain, provider, usdAddress, nativeAddress, retries) {
+async function swap(privateKey, chain, provider, usdAddress, nativeAddress, retries) {
     let inAmountStr;
     if (chain === "Gnosis") {
         inAmountStr = SwapAmount["Gnosis"];
@@ -85,7 +85,7 @@ async function swap(chain, provider, usdAddress, nativeAddress, retries) {
     console.log("Getting quote for swap...");
     const amountIn = ethers.utils.parseUnits(inAmountStr, tokenIn.decimals);
 
-    const approxAmountOut = await getQuote(amountIn, tokenIn, tokenOut, pool, provider);
+    const approxAmountOut = await getQuote(amountIn, tokenIn, tokenOut, pool, inAmountStr, provider);
 
     await sleep(0,2);
 
@@ -98,7 +98,7 @@ async function swap(chain, provider, usdAddress, nativeAddress, retries) {
 
     // // ============= PART 5 --- Making actual swap
     console.log("Checking allowance..."); 
-    await checkAllowance(contractIn, network.chainId, wallet, provider, retries);
+    await checkAllowance(contractIn, network.chainId, wallet, inAmountStr, provider, retries);
 
     await sleep(5,25);
     console.log("Sending swap...\n");
@@ -255,7 +255,7 @@ async function uniswapPool(tokenIn, tokenOut, provider) {
     return pool;
 }
 
-async function getQuote(amountIn, tokenIn, tokenOut, pool, provider) {
+async function getQuote(amountIn, tokenIn, tokenOut, pool, inAmountStr, provider) {
     const quoterContract = new ethers.Contract(UNISWAP_QUOTER_ADDRESS, QuoterABI.abi, provider);
     const quotedAmountOut = await quoterContract.callStatic.quoteExactInputSingle(
         tokenIn.address,
@@ -290,7 +290,7 @@ async function createRoute(pool, tokenIn, tokenOut, amountIn, approxAmountOut) {
     return uncheckedTrade;
 }
 
-async function checkAllowance(contractIn, chainId, wallet, provider, retries) {
+async function checkAllowance(contractIn, chainId, wallet, inAmountStr, provider, retries) {
     const walletAddress = wallet.address;
     const allowanceIn = await contractIn.allowance(walletAddress, V3_SWAP_ROUTER_ADDRESS);
     const decimals = await contractIn.decimals();
