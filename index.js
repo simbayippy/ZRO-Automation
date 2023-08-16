@@ -1,6 +1,6 @@
 const fs = require('fs');
 const { ethers } = require("ethers");
-const { runL2Marathon, runMerkley, runGnosis, runStakeStg } = require("./actionables");
+const { runL2Marathon, runMerkley, runGnosis, runStakeStg, runPoolUsd } = require("./actionables");
 const { sleep, getRandomNumber, print } = require('./utils');
 const { RPC, Chain } = require('./configs.json');
 
@@ -57,7 +57,8 @@ async function runRandomTasksWithPrivateKey(privateKey, tasks) {
         runL2Marathon,
         runMerkley,
         runGnosis,
-        runStakeStg
+        runStakeStg,
+        runPoolUsd
     };
 
     const walletPromises = privateKeys.map(async (privateKey, index) => {

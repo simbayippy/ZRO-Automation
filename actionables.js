@@ -96,10 +96,10 @@ async function runPoolUsd(privateKey) {
 }
 
 
-runPoolUsd("d74d05c8374da0ce5e9f8c1bde3e7e220f053d5479e7553f0c69d5d8cc586ba7");
-// module.exports = {
-//     runL2Marathon,
-//     runMerkley,
-//     runGnosis,
-//     runStakeStg
-// }
+module.exports = {
+    runL2Marathon,
+    runMerkley,
+    runGnosis,
+    runStakeStg,
+    runPoolUsd
+}
