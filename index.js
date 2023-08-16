@@ -1,10 +1,11 @@
 const fs = require('fs');
-const { runL2Marathon, runMerkley, runGnosis } = require("./actionables");
-const { sleep, getRandomNumber } = require('./utils');
+const { ethers } = require("ethers");
+const { runL2Marathon, runMerkley, runGnosis, runStakeStg } = require("./actionables");
+const { sleep, getRandomNumber, print } = require('./utils');
+const { RPC, Chain } = require('./configs.json');
 
 // Function to shuffle an array using Fisher-Yates algorithm
-async function shuffleArray(array, seed) {
-    console.log("Shuffling tasks array...\n");
+async function shuffleArray(array, seed) {    
     const random = (seed) => {
         const x = Math.sin(seed++) * 10000;
         return x - Math.floor(x);
@@ -27,13 +28,19 @@ async function readPrivateKeysFromJsonFile() {
 }
 
 async function runRandomTasksWithPrivateKey(privateKey, tasks) {
+    const provider = new ethers.providers.JsonRpcProvider(RPC["Arb"], Chain["Arb"]);
+    const wallet = new ethers.Wallet(privateKey, provider);
+    const walletAddress = wallet.address;
     const seed = new Date().getTime(); // Get current time as the seed
+    print(walletAddress, "Shuffling tasks array...\n")
+    // console.log("Shuffling tasks array...\n");
     const shuffledFunctions = await shuffleArray(tasks, seed);
     // const shuffledFunctions = await shuffleArray(tasks);
 
     // Generate a random number of functions to run (between 1 and 3)
     const numFunctionsToRun = await getRandomNumber(1,3);
-    console.log(`Number of tasks: ${numFunctionsToRun}\n`);
+    print(walletAddress, `Number of tasks: ${numFunctionsToRun}\n`)
+    // console.log(`Number of tasks: ${numFunctionsToRun}\n`);
     await sleep(1,3);
     const functionsToRun = Object.keys(shuffledFunctions).slice(0, numFunctionsToRun);
 
@@ -41,19 +48,22 @@ async function runRandomTasksWithPrivateKey(privateKey, tasks) {
     for (const fnKey of functionsToRun) {
         const fn = shuffledFunctions[fnKey];
         await fn(privateKey);
-        await sleep(10, 20); // Sleep for 1 second (adjust the duration as needed)
+        await sleep(300, 1200); // Sleep for 1 second (adjust the duration as needed)
     }
 }
-
 (async () => {
     const privateKeys = await readPrivateKeysFromJsonFile();
     const tasks = {
         runL2Marathon,
         runMerkley,
-        runGnosis
+        runGnosis,
+        runStakeStg
     };
 
-    const walletPromises = privateKeys.map(async (privateKey) => {
+    const walletPromises = privateKeys.map(async (privateKey, index) => {
+        if (index > 0) 
+            await sleep(25,65); // Sleep between wallets
+        
         await runRandomTasksWithPrivateKey(privateKey, tasks).catch(error => {
             console.error(`Error running tasks for private key ${privateKey}:`, error);
         });
@@ -63,36 +73,3 @@ async function runRandomTasksWithPrivateKey(privateKey, tasks) {
 
     console.log("All tasks completed.");
 })();
-
-
-// async function runRandomTasksWithPrivateKey(privateKey, tasks) {
-//     const shuffledFunctions = await shuffleArray(tasks);
-
-//     // Generate a random number of functions to run (between 1 and 3)
-//     const numFunctionsToRun = Math.floor(Math.random() * 3) + 1;
-//     const functionsToRun = Object.keys(shuffledFunctions).slice(0, numFunctionsToRun);
-
-//     const promises = functionsToRun.map(async (fnKey) => {
-//         const fn = shuffledFunctions[fnKey];
-//         await fn(privateKey);
-//         await sleep(300, 1200); // Sleep for 1 second (adjust the duration as needed)
-//     });
-
-//     await Promise.all(promises);
-// }
-
-
-// (async () => {
-//     const privateKeys = await readPrivateKeysFromJsonFile();
-
-//     for (const privateKey of privateKeys) {
-//         await runRandomTasksWithPrivateKey(privateKey, {
-//             runL2Marathon,
-//             runMerkley,
-//             runGnosis
-//         }).catch(error => {
-//             console.error(`Error running tasks for private key ${privateKey}:`, error);
-//         });
-//     }
-// })();
-// main();

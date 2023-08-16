@@ -1,6 +1,6 @@
 const { ethers } = require("ethers");
 const { Merkley } = require('./configs.json');
-const { getRandomNumber, sleep } = require('./utils');
+const { getRandomNumber, sleep, print } = require('./utils');
 const { BigNumber } = require('@ethersproject/bignumber');
 
 const merkleyOFT_abi = require("./abis/merkleyOFT_abi.json");
@@ -40,11 +40,13 @@ async function merkleyOFT(privateKey, chain, provider, min, max, retries) {
     const merkleyOFTAddr = Merkley["OFT"][chain];
     const merkleyOFTContract = new ethers.Contract(merkleyOFTAddr, merkleyOFT_abi, provider);
     const contractWithSigner = await merkleyOFTContract.connect(wallet);
-    console.log("Connected to merkley OFT...")
+    print(walletAddress, "Connected to merkley OFT...");
+    // console.log("Connected to merkley OFT...")
 
     const fee = chainToFee[chain];
     const times = await getRandomNumber(min, max);
-    console.log(`   minting 5 OFT ${times} times...`);
+    print(walletAddress, `   minting 5 OFT ${times} times...`);
+    // console.log(`   minting 5 OFT ${times} times...`);
     const payableAmountMint = ethers.utils.parseUnits(fee, "ether").mul(times).mul(5);
 
     try {
@@ -63,19 +65,23 @@ async function merkleyOFT(privateKey, chain, provider, min, max, retries) {
     } catch (e) {
         throw new MintingError("Minting OFT failed", retries + 1);
     }
-    console.log(`   minted successfully!\n`);
+    print(walletAddress, `   minted successfully!\n`);
+    // console.log(`   minted successfully!\n`);
 
-    await sleep(10,35);
+    await sleep(10,35, walletAddress);
 
-    console.log("Preparing to bridge OFTs...\n");
+    print(walletAddress, "Preparing to bridge OFTs...\n");
+    // console.log("Preparing to bridge OFTs...\n");
 
     let destChainsToUse;
+    print(walletAddress, "Randomly selecting destination chains to use...");
     if (chain === "Gnosis") {
         destChainsToUse = await getRandomElementsFromArray(times, destChainsGnosis);
     } else {
         destChainsToUse = await getRandomElementsFromArray(times, destChains);
     }
-    console.log("   Destination chains selected:", destChainsToUse +"\n");
+    print(walletAddress, `   Destination chains selected: ${destChainsToUse}\n`);
+    // console.log("   Destination chains selected:", destChainsToUse +"\n");
 
     const adapterParams = ethers.utils.solidityPack(
         ['uint16','uint256'],
@@ -96,7 +102,8 @@ async function merkleyOFT(privateKey, chain, provider, min, max, retries) {
     }
 
     try {
-        console.log(`Sending ${times} transactions...`);
+        print(walletAddress, `Sending ${times} transactions...`);
+        // console.log(`Sending ${times} transactions...`);
         for (let i = 0; i < times; i++) {   
             const gasPrice = await provider.getGasPrice();
             const maxPriorityFeePerGas = gasPrice.mul(10).div(12);
@@ -107,12 +114,15 @@ async function merkleyOFT(privateKey, chain, provider, min, max, retries) {
                 gasLimit: BigNumber.from('300000')
             });
         
-            await txBridge.wait();  
-            console.log(`   Successfully Bridged, tx hash: ${txBridge.hash}`);
+            await txBridge.wait(); 
+            print(walletAddress, `   Successfully Bridged ${i}, tx hash: ${txBridge.hash}`);
+            // console.log(`   Successfully Bridged, tx hash: ${txBridge.hash}`);
         }
-        console.log("Successfully Bridged all!");
+        print(walletAddress, "Successfully Bridged all!\n");
+        // console.log("Successfully Bridged all!");
     } catch (e) {
-        console.log("bridge error: ", e)
+        print(walletAddress, `Bridge error ${e}`);
+        // console.log("bridge error: ", e)
         throw new BridgingError("Bridge transaction failed", times, 1);
     }
 }
@@ -123,19 +133,24 @@ async function onlyBridge(privateKey, chain, provider, int, retries) {
     const merkleyOFTAddr = Merkley["OFT"][chain];
     const merkleyOFTContract = new ethers.Contract(merkleyOFTAddr, merkleyOFT_abi, provider);
     const contractWithSigner = await merkleyOFTContract.connect(wallet);
-    console.log("Connected to merkley OFT...")
+    print(walletAddress, "Connected to merkley OFT...");
+    // console.log("Connected to merkley OFT...")
 
     const times = int;
 
-    console.log("Preparing to bridge OFTs...\n");
+    print(walletAddress, `Preparing to bridge OFTs...\n`);
+    // console.log("Preparing to bridge OFTs...\n");
 
     let destChainsToUse;
+    print(walletAddress, "Randomly selecting destination chains to use...")
+    // console.log("Randomly selecting destination chains to use...");
     if (chain === "Gnosis") {
         destChainsToUse = await getRandomElementsFromArray(times, destChainsGnosis);
     } else {
         destChainsToUse = await getRandomElementsFromArray(times, destChains);
     }
-    console.log(`   Destination chains selected: ${destChainsToUse}\n`);
+    print(walletAddress, `   Destination chains selected: ${destChainsToUse}\n`);
+    // console.log(`   Destination chains selected: ${destChainsToUse}\n`);
 
     const adapterParams = ethers.utils.solidityPack(
         ['uint16','uint256'],
@@ -156,7 +171,8 @@ async function onlyBridge(privateKey, chain, provider, int, retries) {
     }
 
     try {
-        console.log(`Sending ${times} transactions...`);
+        print(walletAddress, `Sending ${times} transactions...`);
+        // console.log(`Sending ${times} transactions...`);
         for (let i = 0; i < times; i++) {   
             const gasPrice = await provider.getGasPrice();
             const maxPriorityFeePerGas = gasPrice.mul(10).div(12);
@@ -168,9 +184,11 @@ async function onlyBridge(privateKey, chain, provider, int, retries) {
             });
         
             await txBridge.wait();  
-            console.log(`   Successfully Bridged, tx hash: ${txBridge.hash}`);
+            print(walletAddress, `   Successfully Bridged ${i}, tx hash: ${txBridge.hash}`);
+            // console.log(`   Successfully Bridged, tx hash: ${txBridge.hash}`);
         }
-        console.log("Successfully Bridged all!");
+        print(walletAddress, "Successfully Bridged all!\n");
+        // console.log("Successfully Bridged all!");
     } catch (e) {
         console.log("bridge error: ", e)
         throw new BridgingError("Bridge transaction failed", times, retries + 1);
@@ -181,7 +199,7 @@ async function getRandomElementsFromArray(numElements, destChains) {
     if (numElements > destChains.length) {
         throw new Error('Number of elements requested is greater than the array length');
     }
-    console.log("Randomly selecting destination chains to use...");
+    // console.log("Randomly selecting destination chains to use...");
     await sleep(1,2);
     const shuffledArray = destChains.slice().sort(() => Math.random() - 0.5);
     return shuffledArray.slice(0, numElements);

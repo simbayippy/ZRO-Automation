@@ -1,7 +1,7 @@
 const { ethers } = require("ethers");
 // const { privateKey } = require('./configs.json');
 const { BigNumber } = require('@ethersproject/bignumber');
-const { sleep, getRandomNumber } = require('./utils');
+const { sleep, getRandomNumber, print } = require('./utils');
 
 // constants for L2marathon
 const L2marathon_abi = require("./abis/L2marathon_abi.json");
@@ -58,7 +58,8 @@ async function L2marathon(privateKey, chain, provider, min, max, retries) {
 
     await sleep(0,2);
 
-    console.log(`Number of NFTs to mint: ${times} (randomly chosen)\n`);
+    print(walletAddress, `Number of NFTs to mint: ${times} (randomly chosen)\n`);
+    // console.log(`Number of NFTs to mint: ${times} (randomly chosen)\n`);
 
     await sleep(0,2);
 
@@ -67,16 +68,19 @@ async function L2marathon(privateKey, chain, provider, min, max, retries) {
 
     const payableAmountMint = ethers.utils.parseUnits(fee, "ether").mul(times); // 0.33 ETH in wei
 
-    console.log("Connected to L2Marathon!\n");
+    print(walletAddress, "Connected to L2Marathon!\n");
+    // console.log("Connected to L2Marathon!\n");
 
     await sleep(0,2);
-    console.log(`Minting ${times} time(s) Cost: ${fee*times} Native + gas`);
+    print(walletAddress, `Minting ${times} time(s) Cost: ${fee*times} Native + gas`);
+    // console.log(`Minting ${times} time(s) Cost: ${fee*times} Native + gas`);
 
     const start = await contractWithSigner.nextMintId();
     const startId = start.toNumber();
     const endId = startId + times; // does not mint the endId (1 less)
 
-    console.log(`    Minting ids from ${startId} to ${endId - 1}`);
+    print(walletAddress, `    Minting ids from ${startId} to ${endId - 1}`);
+    // console.log(`    Minting ids from ${startId} to ${endId - 1}`);
 
     try {
         const gasPrice = await provider.getGasPrice();
@@ -91,15 +95,17 @@ async function L2marathon(privateKey, chain, provider, min, max, retries) {
         if (receiptMint.status === 0) {
             throw new MintingError('Minting NFTs failed', retries + 1);
         }
-        console.log("Successfully minted! Transaction Hash:", txMint.hash + "\n");
+        print(walletAddress, `Successfully minted! Transaction Hash: ${txMint.hash}\n`);
+        // console.log("Successfully minted! Transaction Hash:", txMint.hash + "\n");
     } catch (e) {
         console.log(e);
         throw new MintingError('Minting NFTs failed', retries + 1);
     }
 
-    await sleep(15, 35);
+    await sleep(15, 35, walletAddress);
 
-    console.log("Preparing to bridge NFTs...\n");
+    print(walletAddress, "Preparing to bridge NFTs...\n");
+    // console.log("Preparing to bridge NFTs...\n");
 
     const idArray = [];
     for (let i = startId; i < endId; i++) {
@@ -111,15 +117,15 @@ async function L2marathon(privateKey, chain, provider, min, max, retries) {
         [1, 300000] // 1 is version, next argument is gaslimit
     )
 
-    // const destChainsToUse = await getRandomElementsFromArray(times); // array of chains to send to
     let destChainsToUse;
+    print(walletAddress, "Randomly selecting destination chains to use...");
     if (chain === "Gnosis") {
-        destChainsToUse = await getRandomElementsFromArrayGnosis(times);
+        destChainsToUse = await getRandomElementsFromArray(times, destChainsGnosis);
     } else {
-        destChainsToUse = await getRandomElementsFromArray(times);
-
+        destChainsToUse = await getRandomElementsFromArray(times, destChains);
     }
-    console.log("   Destination chains selected:", destChainsToUse +"\n");
+    print(walletAddress, `   Destination chains selected: ${destChainsToUse}\n`);
+    // console.log("   Destination chains selected:", destChainsToUse +"\n");
 
     const adapterArray = []
     const destChainFees = [];
@@ -137,13 +143,15 @@ async function L2marathon(privateKey, chain, provider, min, max, retries) {
         adapterArray.push(adapterParams);
     }
 
-    console.log(`total destination fees in wei: ${totalFees}, in ethers: ${ethers.utils.formatEther(totalFees)}\n`)  
+    print(walletAddress, `   Total fees in wei: ${totalFees}, in ethers: ${ethers.utils.formatEther(totalFees)}\n`);
+    // console.log(`total destination fees in wei: ${totalFees}, in ethers: ${ethers.utils.formatEther(totalFees)}\n`)  
 
     // const payableAmountBridge = ethers.utils.parseUnits(totalFees.toString(), "wei");
     const payableAmountBridge = totalFees; // Use the BigNumber directly
 
     try {
-        console.log("Sending transaction...\n");
+        print(walletAddress, "Sending transaction...\n");
+        // console.log("Sending transaction...\n");
         const gasPrice = await provider.getGasPrice();
         const maxPriorityFeePerGas = gasPrice.mul(10).div(12);
         const txBridge = await contractWithSigner.ultraRun(walletAddress, destChainsToUse, walletAddress, idArray, walletAddress, ethers.constants.AddressZero, adapterArray, destChainFees, {
@@ -158,7 +166,8 @@ async function L2marathon(privateKey, chain, provider, min, max, retries) {
         if (receiptBridge.status === 0) {
             throw new BridgingError('Bridging transaction failed', times, startId, 1);
         }
-        console.log("Successfully Bridged! Transaction Hash:", txBridge.hash);
+        print(walletAddress, `Successfully Bridged! Transaction Hash: ${txBridge.hash}\n`);
+        // console.log("Successfully Bridged! Transaction Hash:", txBridge.hash);
     } catch (e) {
         throw new BridgingError("Bridge transaction failed", times, startId, 1);
     }
@@ -182,7 +191,8 @@ async function onlyBridge(privateKey, chain, provider, int, start, retries) {
     const startId = start;
     const endId = startId + times; // does not mint the endId (1 less)
 
-    console.log("Preparing to bridge NFTs...\n");
+    print(walletAddress, "Preparing to bridge NFTs...\n");
+    // console.log("Preparing to bridge NFTs...\n");
 
     await sleep(1,2);
 
@@ -195,9 +205,16 @@ async function onlyBridge(privateKey, chain, provider, int, start, retries) {
         ['uint16','uint256'],
         [1, 300000] // 1 is version, next argument is gaslimit
     )
-
-    const destChainsToUse = await getRandomElementsFromArray(times); // array of chains to send to
-    console.log("   Destination chains selected: ", destChainsToUse +"\n");
+    
+    let destChainsToUse;
+    print(walletAddress, "Randomly selecting destination chains to use...");
+    if (chain === "Gnosis") {
+        destChainsToUse = await getRandomElementsFromArray(times, destChainsGnosis);
+    } else {
+        destChainsToUse = await getRandomElementsFromArray(times, destChains);
+    }
+    print(walletAddress, `   Destination chains selected: ${destChainsToUse}\n`);    
+    // console.log("   Destination chains selected: ", destChainsToUse +"\n");
 
     const adapterArray = []
     const destChainFees = [];
@@ -214,13 +231,14 @@ async function onlyBridge(privateKey, chain, provider, int, start, retries) {
         destChainFees.push(fees[0]);
         adapterArray.push(adapterParams);
     }
-
-    console.log(`total destination fees in wei: ${totalFees}, in ethers: ${ethers.utils.formatEther(totalFees)}\n`)  
+    print(walletAddress, `total destination fees in wei: ${totalFees}, in ethers: ${ethers.utils.formatEther(totalFees)}\n`);
+    // console.log(`total destination fees in wei: ${totalFees}, in ethers: ${ethers.utils.formatEther(totalFees)}\n`)  
 
     // const payableAmountBridge = ethers.utils.parseUnits(totalFees.toString(), "wei");
     const payableAmountBridge = totalFees; // Use the BigNumber directly
 
-    console.log("Sending transaction...\n");
+    print(walletAddress, "Sending transaction...\n");
+    // console.log("Sending transaction...\n");
 
     try {
         const gasPrice = await provider.getGasPrice();
@@ -237,31 +255,23 @@ async function onlyBridge(privateKey, chain, provider, int, start, retries) {
             console.log("here first");
             throw new BridgingError("Bridge transaction failed", times, startId, retries + 1);
         } 
-        console.log("Successfully Bridged! Transaction Hash:", txBridge.hash, "\n");
+        print(walletAddress, `Successfully Bridged! Transaction Hash: ${txBridge.hash}\n`);
+        // console.log("Successfully Bridged! Transaction Hash:", txBridge.hash, "\n");
     } catch(e) {
-        console.log(e);
+        print(walletAddress, e);
+        // console.log(e);
         throw new BridgingError("Bridge transaction failed", times, startId, retries + 1);
     }
 }
 
-async function getRandomElementsFromArray(numElements) {
+async function getRandomElementsFromArray(numElements, destChains) {
     if (numElements > destChains.length) {
         throw new Error('Number of elements requested is greater than the array length');
     }
-    console.log("Randomly selecting destination chains to use...");
+    // console.log("Randomly selecting destination chains to use...");
     await sleep(1,2);
     const shuffledArray = destChains.slice().sort(() => Math.random() - 0.5);
     return shuffledArray.slice(0, numElements);
-}
-
-async function getRandomElementsFromArrayGnosis(numElements) {
-    if (numElements > destChainsGnosis.length) {
-        throw new Error('Number of elements requested is greater than the array length');
-    }
-    console.log("Randomly selecting destination chains to use...");
-    await sleep(1,2);
-    const shuffledArray = destChainsGnosis.slice().sort(() => Math.random() - 0.5);
-    return shuffledArray.slice(0, numElements); 
 }
 
 class MintingError extends Error {

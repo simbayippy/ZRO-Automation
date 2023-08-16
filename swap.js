@@ -6,7 +6,7 @@ const IUniswapV3Factory = require('@uniswap/v3-core/artifacts/contracts/interfac
 const QuoterABI = require('@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json');
 const { BigNumber } = require('@ethersproject/bignumber');
 const { SwapAmount } = require('./configs.json');
-const { sleep, getRandomNumber } = require('./utils');
+const { sleep, getRandomNumber, print, getRandomDecimal } = require('./utils');
 
 const ERC20_abi = require("./abis/ERC20_abi.json");
 const WNative_abi = require("./abis/wnative_abi.json");
@@ -17,62 +17,79 @@ const UNISWAP_QUOTER_ADDRESS = '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6'
 const V3_SWAP_ROUTER_ADDRESS = '0xe592427a0aece92de3edee1f18e0157c05861564';
 
 
-async function attemptSwap(privateKey, chain, provider, usdAddr, nativeAddr) {
+async function attemptSwap(privateKey, type, provider, from, to, ...vaargs) {
+    const wallet = new ethers.Wallet(privateKey, provider);
+    const walletAddress = wallet.address;
     try {
-        await swap(privateKey, chain, provider, usdAddr, nativeAddr, 0);
+        if (vaargs.length > 0) {
+            await swap(privateKey, type, provider, from, to, 0, ...vaargs);
+        } else {
+            await swap(privateKey, type, provider, from, to, 0);
+        }
     } catch (e) {
         if (e.retries >= 2) {
-            console.log("Exceeded maximum number of attempts");
+            print(walletAddress, "Exceeded maximum number of attempts")
+            // console.log("Exceeded maximum number of attempts");
             return;
         }
-
         if (e instanceof SwapError) {
-            await swap(privateKey, chain, provider, usdAddr, nativeAddr, e.retries);
+            if (vaargs.length > 0) {
+                await swap(privateKey, type, provider, from, to, e.retries, ...vaargs);
+            } else {
+                await swap(privateKey, type, provider, from, to, e.retries);
+            }
         } else {
-            console.log(e);
+            // console.log(e);
+            print(walletAddress, e);
         }
     }
 }
 
-async function swap(privateKey, chain, provider, usdAddress, nativeAddress, retries) {
-    let inAmountStr;
-    if (chain === "Gnosis") {
-        inAmountStr = SwapAmount["Gnosis"];
-    } else {
-        inAmountStr = SwapAmount["Normal"]
-    }
+async function swap(privateKey, type, provider, from, to, retries, ...vaargs) {
+    // Use WNative_abi by default if vaargs[0] is not provided
+    const toAbi = vaargs[0] || WNative_abi; 
+
+    const range = SwapAmount[type];
+    const randomDecimalAmt = await getRandomDecimal(range[0], range[1]);
+    const inAmountStr = randomDecimalAmt.toString();
+    
     const wallet = new ethers.Wallet(privateKey, provider);
     const walletAddress = wallet.address;
 
     // swapping USDC.e -> weth -> unwrap to eth
-    const contractIn = new ethers.Contract(usdAddress, ERC20_abi, provider);
+    const contractIn = new ethers.Contract(from, ERC20_abi, provider);
 
-    const contractOut = new ethers.Contract(nativeAddress, WNative_abi, provider);
+    const contractOut = new ethers.Contract(to, toAbi, provider);
     const balanceEth = await provider.getBalance(walletAddress);
 
-    console.log("Checking balance of wallet...")
-    console.log("   Native balance: ",  ethers.utils.formatEther(balanceEth))
+    print(walletAddress, "Checking balance of wallet...");
+    print(walletAddress, `Native balance: ${ethers.utils.formatEther(balanceEth)}`);
+    // console.log("Checking balance of wallet...")
+    // console.log("   Native balance: ",  ethers.utils.formatEther(balanceEth))
 
     const balanceWNative = await contractOut.balanceOf(walletAddress);
     const decimalsWNative = await contractOut.decimals();
     const WNativeSymbol = await contractOut.symbol();
-    console.log(`   ${WNativeSymbol} balance: ${balanceWNative}`);
+    print(walletAddress, `   ${WNativeSymbol} balance: ${balanceWNative}`);
+    // console.log(`   ${WNativeSymbol} balance: ${balanceWNative}`);
     
     const balanceUSD = await contractIn.balanceOf(walletAddress);
     const decimalsUSD = await contractIn.decimals();
     const formattedBalance = ethers.utils.formatUnits(balanceUSD, decimalsUSD);
     const USDSymbol = await contractIn.symbol()
-    console.log(`   ${USDSymbol} balance: ${formattedBalance}\n`);
+    print(walletAddress, `   ${USDSymbol} balance: ${formattedBalance}`);
+    // console.log(`   ${USDSymbol} balance: ${formattedBalance}\n`);
 
     await sleep(0,2);
 
     const network = await provider.getNetwork();
     // uniswap
-    const tokenIn = new Token(network.chainId, usdAddress, decimalsUSD, USDSymbol);
-    const tokenOut = new Token(network.chainId, nativeAddress, decimalsWNative, WNativeSymbol);
+    const tokenIn = new Token(network.chainId, from, decimalsUSD, USDSymbol);
+    const tokenOut = new Token(network.chainId, to, decimalsWNative, WNativeSymbol);
 
     if (parseFloat(formattedBalance) < parseFloat(inAmountStr)) {
-        console.log(`Error: not enough ${tokenIn.symbol}. Have: ${formattedBalance}, need: ${inAmountStr}\nTop up wallet ${walletAddress}`);
+        print(walletAddress, `Error: not enough ${tokenIn.symbol}. Have: ${formattedBalance}, need: ${inAmountStr}\nTop up wallet ${walletAddress}`);
+        // console.log(`Error: not enough ${tokenIn.symbol}. Have: ${formattedBalance}, need: ${inAmountStr}\nTop up wallet ${walletAddress}`);
         throw new SwapError("Not enough balance", retries + 1);
     }
 
@@ -82,7 +99,8 @@ async function swap(privateKey, chain, provider, usdAddress, nativeAddress, retr
     await sleep(0,2);
 
     // ============= PART 3 --- Giving a quote for user input
-    console.log("Getting quote for swap...");
+    print(walletAddress, "Getting quote for swap...");
+    // console.log("Getting quote for swap...");
     const amountIn = ethers.utils.parseUnits(inAmountStr, tokenIn.decimals);
 
     const approxAmountOut = await getQuote(amountIn, tokenIn, tokenOut, pool, inAmountStr, provider);
@@ -90,18 +108,21 @@ async function swap(privateKey, chain, provider, usdAddress, nativeAddress, retr
     await sleep(0,2);
 
     // ============= PART 4 --- Loading a swap route
-    console.log("Creating swap route based on quote...");
+    print(walletAddress, "Creating swap route based on quote...")
+    // console.log("Creating swap route based on quote...");
 
     const uncheckedTrade = await createRoute(pool, tokenIn, tokenOut, amountIn, approxAmountOut);
 
     await sleep(0,2);
 
     // // ============= PART 5 --- Making actual swap
-    console.log("Checking allowance..."); 
+    print(walletAddress, "Checking allowance...");
+    // console.log("Checking allowance..."); 
     await checkAllowance(contractIn, network.chainId, wallet, inAmountStr, provider, retries);
 
-    await sleep(5,25);
-    console.log("Sending swap...\n");
+    await sleep(5,25, walletAddress);
+    print(walletAddress, "Sending swap...\n");
+    // console.log("Sending swap...\n");
 
     const options = {
         slippageTolerance: new Percent(50, 10000), // 50 bips, or 0.50%
@@ -132,7 +153,8 @@ async function swap(privateKey, chain, provider, usdAddress, nativeAddress, retr
             throw new SwapError("Swap transaction failed", retries + 1);
         }
     } catch(e) {
-        console.log(e)
+        print(walletAddress, e);
+        // console.log(e)
         throw new SwapError("Swap transaction failed", retries + 1);
     }
 
@@ -142,14 +164,20 @@ async function swap(privateKey, chain, provider, usdAddress, nativeAddress, retr
         contractOut.balanceOf(walletAddress)
     ]);
 
-    console.log('Swap completed successfully!\n');
-    console.log('Updated balances:');
-    console.log("   Native: ", ethers.utils.formatEther(await provider.getBalance(walletAddress)));
-    console.log(`   ${tokenIn.symbol}: ${ethers.utils.formatUnits(newBalanceIn, tokenIn.decimals)}`);
-    console.log(`   ${tokenOut.symbol}: ${ethers.utils.formatUnits(newBalanceOut, tokenOut.decimals)}\n`);
+    print(walletAddress, 'Swap completed successfully!\n');
+    print(walletAddress, 'Updated balances:')
+    print("   Native: ", ethers.utils.formatEther(await provider.getBalance(walletAddress)));
+    print(`   ${tokenIn.symbol}: ${ethers.utils.formatUnits(newBalanceIn, tokenIn.decimals)}`);
+    print(`   ${tokenOut.symbol}: ${ethers.utils.formatUnits(newBalanceOut, tokenOut.decimals)}\n`);
+    // console.log('Swap completed successfully!\n');
+    // console.log('Updated balances:');
+    // console.log("   Native: ", ethers.utils.formatEther(await provider.getBalance(walletAddress)));
+    // console.log(`   ${tokenIn.symbol}: ${ethers.utils.formatUnits(newBalanceIn, tokenIn.decimals)}`);
+    // console.log(`   ${tokenOut.symbol}: ${ethers.utils.formatUnits(newBalanceOut, tokenOut.decimals)}\n`);
 
-    await sleep(5,22);
-    console.log(`Unwrapping ${WNativeSymbol} to Native...\n`);
+    await sleep(5,22, walletAddress);
+    print(walletAddress, `Unwrapping ${WNativeSymbol} to Native...\n`);
+    // console.log(`Unwrapping ${WNativeSymbol} to Native...\n`);
 
     const contractWithSigner = await contractOut.connect(wallet);
     const payableAmount = ethers.utils.parseUnits("0", "ether"); // 0
@@ -177,12 +205,17 @@ async function swap(privateKey, chain, provider, usdAddress, nativeAddress, retr
         contractOut.balanceOf(walletAddress)
     ]);
 
-    console.log('Updated balances:');
-    console.log("   Native: ", ethers.utils.formatEther(await provider.getBalance(walletAddress)));
-    console.log(`   ${tokenIn.symbol}: ${ethers.utils.formatUnits(newBalanceIn, tokenIn.decimals)}`);
-    console.log(`   ${tokenOut.symbol}: ${ethers.utils.formatUnits(newBalanceOut, tokenOut.decimals)}\n`);
+    print(walletAddress, 'Updated balances:');
+    print("   Native: ", ethers.utils.formatEther(await provider.getBalance(walletAddress)));
+    print(`   ${tokenIn.symbol}: ${ethers.utils.formatUnits(newBalanceIn, tokenIn.decimals)}`);
+    print(`   ${tokenOut.symbol}: ${ethers.utils.formatUnits(newBalanceOut, tokenOut.decimals)}\n`);
+    // console.log('Updated balances:');
+    // console.log("   Native: ", ethers.utils.formatEther(await provider.getBalance(walletAddress)));
+    // console.log(`   ${tokenIn.symbol}: ${ethers.utils.formatUnits(newBalanceIn, tokenIn.decimals)}`);
+    // console.log(`   ${tokenOut.symbol}: ${ethers.utils.formatUnits(newBalanceOut, tokenOut.decimals)}\n`);
 
-    console.log("Swapping done.\n")
+    print(walletAddress, "Swapping done.\n");
+    // console.log("Swapping done.\n")
 }
 
 async function uniswapPool(tokenIn, tokenOut, provider) {
@@ -295,10 +328,12 @@ async function checkAllowance(contractIn, chainId, wallet, inAmountStr, provider
     const allowanceIn = await contractIn.allowance(walletAddress, V3_SWAP_ROUTER_ADDRESS);
     const decimals = await contractIn.decimals();
     if ((allowanceIn / (10**decimals)) > inAmountStr) {
-        console.log("   allowance already set\n");
+        print(walletAddress, "   allowance already set\n");
+        // console.log("   allowance already set\n");
         return;
     }
-    console.log(`   allowance not set. setting allowance...`)
+    print(walletAddress, `   allowance not set. setting allowance...`);
+    // console.log(`   allowance not set. setting allowance...`)
     const amtToApprove = getRandomNumber(999999999, 999999999999)
 
     // const amtToApprove = 999999999999;
@@ -320,10 +355,11 @@ async function checkAllowance(contractIn, chainId, wallet, inAmountStr, provider
         const approveReceipt = await submittedTx.wait();
         if (approveReceipt.status === 0)
             throw new SwapError("Approve transaction failed", retries + 1);
-
-        console.log("   allowance of 999999999999 set\n");
+        print(walletAddress, "   allowance of 999999999999 set\n");
+        // console.log("   allowance of 999999999999 set\n");
     } catch (e) {
-        console.log(e)
+        print(walletAddress, e);
+        // console.log(e)
         throw new SwapError("Approve transaction failed", retries + 1);
     }
 }

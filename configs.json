@@ -1,7 +1,8 @@
 {
     "SwapAmount": {
-        "Normal": "4.5",
-        "Gnosis": "1.1"
+        "Normal": [4,4.5],
+        "Refill": [0.9, 1.1],
+        "StakeStg": [1, 2]
     },
     "MinMax": {
         "Normal": {
@@ -47,7 +48,39 @@
         "PoolId": {
             "USDC": 1,
             "USDT": 2
+        },
+        "StgToken": {
+            "Arb": "0x6694340fc020c5E6B96567843da2df01b2CE1eb6",
+            "Optimism": "0x296F55F8Fb28E498B858d0BcDA06D955B2Cb3f97",
+            "Polygon": "0x2F6F07CDcf3588944Bf4C42aC74ff24bF56e7590"
+        },
+        "StgStakingAddr": {
+            "Arb": "0xfBd849E6007f9BC3CC2D6Eb159c045B8dc660268",
+            "Optimism": "0x43d2761ed16C89A2C4342e2B16A3C61Ccf88f05B",
+            "Polygon": "0x3AB2DA31bBD886A7eDF68a6b60D3CDe657D3A15D"
+        },
+        "UsdPooled": {
+            "USDC": {
+                "Arb": "0x892785f33cdee22a30aef750f285e18c18040c3e",
+                "Optimism": "0xdecc0c09c3b5f6e92ef4184125d5648a66e35298",
+                "Polygon": "0x1205f31718499dbf1fca446663b532ef87481fe1",
+                "Avax": "0x1205f31718499dbf1fca446663b532ef87481fe1"
+            },
+            "USDT": {
+                "Arb": "0xb6cfcf89a7b22988bfc96632ac2a9d6dab60d641",
+                "Polygon": "0x29e38769f23701a2e4a8ef0492e19da4604be62c",
+                "BSC": "0x9aa83081aa06af7208dcc7a4cb72c94d057d2cda",
+                "Avax": "0x29e38769f23701a2e4a8ef0492e19da4604be62c"
+            }
+        },
+        "PoolAddr": {
+            "Arb": "0xea8dfee1898a7e0a59f7527f076106d7e44c2176",
+            "Optimism": "0x4dea9e918c6289a52cd469cac652727b7b412cd2",
+            "Polygon": "0x8731d54e9d02c286767d56ac03e8037c07e01e98",
+            "BSC": "0x3052A0F6ab15b4AE1df39962d5DdEFacA86DaB47",
+            "Avax": "0x8731d54e9d02c286767d56ac03e8037c07e01e98"
         }
+        
     },
     "Bungee": {
         "Addr": {
