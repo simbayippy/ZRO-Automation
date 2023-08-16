@@ -2,16 +2,12 @@ const fs = require('fs');
 const { ethers } = require("ethers");
 const { runL2Marathon, runMerkley, runGnosis, runStakeStg, runPoolUsd } = require("./actionables");
 const { sleep, getRandomNumber, print } = require('./utils');
-const { RPC, Chain } = require('./configs.json');
+const { NumActions, RPC, Chain } = require('./configs.json');
+const crypto = require('crypto');
 
-// Function to shuffle an array using Fisher-Yates algorithm
-async function shuffleArray(array, seed) {    
-    const random = (seed) => {
-        const x = Math.sin(seed++) * 10000;
-        return x - Math.floor(x);
-    };
+function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(random(seed) * (i + 1));
+        const j = Math.floor(crypto.randomInt(0, i + 1));
         [array[i], array[j]] = [array[j], array[i]];
     }
     return array;
@@ -31,14 +27,16 @@ async function runRandomTasksWithPrivateKey(privateKey, tasks) {
     const provider = new ethers.providers.JsonRpcProvider(RPC["Arb"], Chain["Arb"]);
     const wallet = new ethers.Wallet(privateKey, provider);
     const walletAddress = wallet.address;
-    const seed = new Date().getTime(); // Get current time as the seed
-    print(walletAddress, "Shuffling tasks array...\n")
-    // console.log("Shuffling tasks array...\n");
-    const shuffledFunctions = await shuffleArray(tasks, seed);
+
+    console.log(walletAddress, "Shuffling tasks array...");
+    const shuffledFunctions = await shuffleArray(Object.keys(tasks));
+
+    console.log(walletAddress, `Shuffled tasks: ${shuffledFunctions.join(", ")}`);
+
     // const shuffledFunctions = await shuffleArray(tasks);
 
     // Generate a random number of functions to run (between 1 and 3)
-    const numFunctionsToRun = await getRandomNumber(1,3);
+    const numFunctionsToRun = await getRandomNumber(NumActions[0], NumActions[1]);
     print(walletAddress, `Number of tasks: ${numFunctionsToRun}\n`)
     // console.log(`Number of tasks: ${numFunctionsToRun}\n`);
     await sleep(1,3);
