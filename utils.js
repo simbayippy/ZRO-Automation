@@ -225,10 +225,7 @@ async function checkAllowance(contractIn, provider, spender, wallet, retries) {
       maxFeePerGas: gasPrice,
       maxPriorityFeePerGas: maxPriorityFeePerGas
     });
-    const receipt = await tx.wait();
-    if (receipt.status === 0)
-        throw new SwapError("Approve transaction failed", retries + 1);
-  
+    await tx.wait();
     print(walletAddress, `   allowance of ${desiredAllowance} set\n`)
     // console.log(`   allowance of ${desiredAllowance} set\n`);
   } catch (e) {
