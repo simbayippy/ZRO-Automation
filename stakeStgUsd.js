@@ -34,7 +34,7 @@ async function stakeStg(privateKey, chain, provider, inAddr, retries) {
     const walletAddress = wallet.address;
 
     print(walletAddress, "Swapping usd to STG...");
-    await attemptSwap(privateKey, "StakeStg", provider, inAddr, Stargate["StgToken"][chain], stgToken_abi);
+    await attemptSwap(privateKey, "StakeStg", provider, inAddr, Stargate["StgToken"][chain], false, stgToken_abi);
     await checkAllowance(Stargate["StgToken"][chain], provider, Stargate["StgStakingAddr"][chain], wallet, 0);
 
     const contractStg = new ethers.Contract(Stargate["StgToken"][chain], stgToken_abi, provider);

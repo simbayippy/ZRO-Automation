@@ -17,14 +17,14 @@ const UNISWAP_QUOTER_ADDRESS = '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6'
 const V3_SWAP_ROUTER_ADDRESS = '0xe592427a0aece92de3edee1f18e0157c05861564';
 
 
-async function attemptSwap(privateKey, type, provider, from, to, ...vaargs) {
+async function attemptSwap(privateKey, type, provider, from, to, toNative, ...vaargs) {
     const wallet = new ethers.Wallet(privateKey, provider);
     const walletAddress = wallet.address;
     try {
         if (vaargs.length > 0) {
-            await swap(privateKey, type, provider, from, to, 0, ...vaargs);
+            await swap(privateKey, type, provider, from, to, toNative, 0, ...vaargs);
         } else {
-            await swap(privateKey, type, provider, from, to, 0);
+            await swap(privateKey, type, provider, from, to, toNative, 0);
         }
     } catch (e) {
         if (e.retries >= 2) {
@@ -34,9 +34,9 @@ async function attemptSwap(privateKey, type, provider, from, to, ...vaargs) {
         }
         if (e instanceof SwapError) {
             if (vaargs.length > 0) {
-                await swap(privateKey, type, provider, from, to, e.retries, ...vaargs);
+                await swap(privateKey, type, provider, from, to, toNative, e.retries, ...vaargs);
             } else {
-                await swap(privateKey, type, provider, from, to, e.retries);
+                await swap(privateKey, type, provider, from, to, toNative, e.retries);
             }
         } else {
             // console.log(e);
@@ -45,14 +45,15 @@ async function attemptSwap(privateKey, type, provider, from, to, ...vaargs) {
     }
 }
 
-async function swap(privateKey, type, provider, from, to, retries, ...vaargs) {
+async function swap(privateKey, type, provider, from, to, retries, toNative, ...vaargs) {
     // Use WNative_abi by default if vaargs[0] is not provided
     const toAbi = vaargs[0] || WNative_abi; 
 
-    const range = SwapAmount[type];
-    const randomDecimalAmt = await getRandomDecimal(range[0], range[1]);
+    const rangeMin = SwapAmount[type]["Min"];
+    const rangeMax = SwapAmount[type]["Max"];
+    const randomDecimalAmt = await getRandomDecimal(rangeMin, rangeMax);
     const inAmountStr = randomDecimalAmt.toString();
-    
+
     const wallet = new ethers.Wallet(privateKey, provider);
     const walletAddress = wallet.address;
 
@@ -176,6 +177,12 @@ async function swap(privateKey, type, provider, from, to, retries, ...vaargs) {
     // console.log(`   ${tokenOut.symbol}: ${ethers.utils.formatUnits(newBalanceOut, tokenOut.decimals)}\n`);
 
     await sleep(5,22, walletAddress);
+
+    // if native then need to unwrap, else return immediately
+    if (!toNative) {
+        return;
+    }
+
     print(walletAddress, `Unwrapping ${WNativeSymbol} to Native...\n`);
     // console.log(`Unwrapping ${WNativeSymbol} to Native...\n`);
 

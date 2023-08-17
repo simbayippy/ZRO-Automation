@@ -20,7 +20,7 @@ async function runL2Marathon(privateKey) {
         await attemptBridge(privateKey, info.highestChainProvider, info.highestChain, info.highestBalanceUnformatted, info.highestStableCoin);
         info = await determineChain(privateKey);
     }
-    await attemptSwap(privateKey, "Normal", info.highestChainProvider, info.usdAddr, info.nativeAddr);
+    await attemptSwap(privateKey, "Normal", info.highestChainProvider, info.usdAddr, info.nativeAddr, true);
 
     await attemptL2Marathon(privateKey, info.highestChain, info.highestChainProvider, MinMax["Normal"]["Min"], MinMax["Normal"]["Max"]);
 }
@@ -38,7 +38,7 @@ async function runMerkley(privateKey) {
         info = await determineChain(privateKey);
     }
 
-    await attemptSwap(privateKey, "Normal", info.highestChainProvider, info.usdAddr, info.nativeAddr);
+    await attemptSwap(privateKey, "Normal", info.highestChainProvider, info.usdAddr, info.nativeAddr, true);
 
     await attemptMerkleyOFT(privateKey, info.highestChain, info.highestChainProvider, MinMax["Normal"]["Min"], MinMax["Normal"]["Max"]);
 }
@@ -95,7 +95,13 @@ async function runPoolUsd(privateKey) {
     await attemptPoolUsd(privateKey, info.highestChain, info.highestChainProvider, info.highestStableCoin, info.usdAddr);
 }
 
+async function runTest(privateKey) {
+    let info = await determineChain(privateKey);
+    attemptMerkleyOFT(privateKey, info.highestChain, info.highestChainProvider, 2,3);
 
+}
+
+runTest("0298e92d80bd018005a465545b68b336541d149fca4410f3ac7baab6daf6102d");
 module.exports = {
     runL2Marathon,
     runMerkley,

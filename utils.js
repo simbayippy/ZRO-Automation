@@ -7,17 +7,6 @@ const ERC20_abi = require("./abis/ERC20_abi.json");
 const sg_abi = require("./abis/stargate_abi.json");
 const MAX_RETRIES = 2;
 
-// async function sleep(minSeconds, maxSeconds) {
-//     const randomSeconds = Math.random() * (maxSeconds - minSeconds) + minSeconds;
-
-//     if (randomSeconds > 5) {
-//         console.log(`Sleeping for ${randomSeconds}s...\n`)
-//     }
-//     return new Promise((resolve) => {
-//       setTimeout(resolve, randomSeconds * 1000);
-//     });
-// }
-
 async function sleep(minSeconds, maxSeconds, ...vaargs) {
     const randomSeconds = Math.random() * (maxSeconds - minSeconds) + minSeconds;
     const walletAddress = vaargs[0]; // Assuming the wallet address is the first argument

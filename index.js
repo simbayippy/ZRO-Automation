@@ -33,22 +33,20 @@ async function runRandomTasksWithPrivateKey(privateKey, tasks) {
 
     console.log(walletAddress, `Shuffled tasks: ${shuffledFunctions.join(", ")}`);
 
-    // const shuffledFunctions = await shuffleArray(tasks);
-
     // Generate a random number of functions to run (between 1 and 3)
-    const numFunctionsToRun = await getRandomNumber(NumActions[0], NumActions[1]);
-    print(walletAddress, `Number of tasks: ${numFunctionsToRun}\n`)
-    // console.log(`Number of tasks: ${numFunctionsToRun}\n`);
-    await sleep(1,3);
-    const functionsToRun = Object.keys(shuffledFunctions).slice(0, numFunctionsToRun);
+    const numFunctionsToRun = await getRandomNumber(NumActions["Min"], NumActions["Max"]);
+    print(walletAddress, `Number of tasks: ${numFunctionsToRun}\n`);
+
+    const functionsToRun = shuffledFunctions.slice(0, numFunctionsToRun); // Use the shuffled function names directly
 
     // Run tasks sequentially for this wallet
     for (const fnKey of functionsToRun) {
-        const fn = shuffledFunctions[fnKey];
+        const fn = tasks[fnKey]; // Get the function using its name from the tasks object
         await fn(privateKey);
-        await sleep(300, 1200); // Sleep for 1 second (adjust the duration as needed)
+        await sleep(300, 1200, walletAddress); // Sleep for 1 second (adjust the duration as needed)
     }
 }
+
 (async () => {
     const privateKeys = await readPrivateKeysFromJsonFile();
     const tasks = {
@@ -64,7 +62,7 @@ async function runRandomTasksWithPrivateKey(privateKey, tasks) {
             await sleep(25,65); // Sleep between wallets
         
         await runRandomTasksWithPrivateKey(privateKey, tasks).catch(error => {
-            console.error(`Error running tasks for private key ${privateKey}:`, error);
+            console.error(`Error running tasks for private key}:`, error);
         });
     });
 

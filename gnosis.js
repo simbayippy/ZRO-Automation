@@ -23,7 +23,7 @@ async function refillGas(privateKey, chain, provider, min, max) {
     }
 
     let info = await determineChain(privateKey);
-    await attemptSwap(privateKey, "Refill", info.highestChainProvider, info.usdAddr, info.nativeAddr);     
+    await attemptSwap(privateKey, "Refill", info.highestChainProvider, info.usdAddr, info.nativeAddr, true);     
     const wallet = new ethers.Wallet(privateKey, info.highestChainProvider);
     const walletAddress = wallet.address;
     const bungeeAddr = Bungee["Addr"][info.highestChain];
@@ -65,6 +65,8 @@ async function refillGas(privateKey, chain, provider, min, max) {
 
     await waitArrival(walletAddress);
 
+    const gnosisProvider = new ethers.providers.JsonRpcProvider(RPC["Gnosis"], Chain["Gnosis"]);
+
     const int = await getRandomNumber(0,1);
     if (int === 0) {
         await attemptL2Marathon(privateKey, chain, gnosisProvider, min, max);
@@ -86,7 +88,7 @@ async function gnosis(privateKey, min, max) {
     }
 
     let info = await determineChain(privateKey);
-    await attemptSwap(privateKey, "Refill", info.highestChainProvider, info.usdAddr, info.nativeAddr);     
+    await attemptSwap(privateKey, "Refill", info.highestChainProvider, info.usdAddr, info.nativeAddr, true);     
     const wallet = new ethers.Wallet(privateKey, info.highestChainProvider);
     const walletAddress = wallet.address;
     const bungeeAddr = Bungee["Addr"][info.highestChain];

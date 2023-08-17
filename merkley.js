@@ -13,7 +13,7 @@ const chainToFee = {
     "Optimism": "0.0000025",
     "Gnosis": "0.0005",
 };
-const destChains = [175, 155, 125, 116, 126, 153, 177, 176];
+const destChains = [175, 155, 125, 116, 126, 177, 176];
 const destChainsGnosis = [125, 138, 150];
 
 async function attemptMerkleyOFT(privateKey, chain, provider, min, max) {
@@ -27,7 +27,7 @@ async function attemptMerkleyOFT(privateKey, chain, provider, min, max) {
         if (e instanceof MintingError) {
             await merkleyOFT(privateKey, chain, provider, min, max, e.retries);
         } else if (e instanceof BridgingError) {
-            await onlyBridge(privateKey, chain, provider, e.times - 1, e.retries)
+            await onlyBridge(privateKey, chain, provider, e.times, e.retries)
         } else {
             console.log(e);
         }
@@ -42,33 +42,40 @@ async function merkleyOFT(privateKey, chain, provider, min, max, retries) {
     const contractWithSigner = await merkleyOFTContract.connect(wallet);
     print(walletAddress, "Connected to merkley OFT...");
     // console.log("Connected to merkley OFT...")
-
-    const fee = chainToFee[chain];
+    await sleep(0,2);
+    const currOFTBalance = await contractWithSigner.balanceOf(walletAddress);
+    const currOFTFormmated = ethers.utils.formatEther(currOFTBalance);
     const times = await getRandomNumber(min, max);
-    print(walletAddress, `   minting 5 OFT ${times} times...`);
-    // console.log(`   minting 5 OFT ${times} times...`);
-    const payableAmountMint = ethers.utils.parseUnits(fee, "ether").mul(times).mul(5);
 
-    try {
-        const gasPrice = await provider.getGasPrice();
-        const maxPriorityFeePerGas = gasPrice.mul(10).div(12);
-        const tx = await contractWithSigner.mint(
-            walletAddress,
-            times * 5,
-            {
-                value: payableAmountMint,
-                maxFeePerGas: gasPrice,
-                maxPriorityFeePerGas: maxPriorityFeePerGas
-            }
-        )
-        await tx.wait();
-    } catch (e) {
-        throw new MintingError("Minting OFT failed", retries + 1);
+    if (currOFTBalance.lt(BigNumber.from("5000000000000000000").mul(times))) {
+        const fee = chainToFee[chain];
+        print(walletAddress, `   minting 5 OFT ${times} times...`);
+        // console.log(`   minting 5 OFT ${times} times...`);
+        const payableAmountMint = ethers.utils.parseUnits(fee, "ether").mul(times).mul(5);
+    
+        try {
+            const gasPrice = await provider.getGasPrice();
+            const maxPriorityFeePerGas = gasPrice.mul(10).div(12);
+            const tx = await contractWithSigner.mint(
+                walletAddress,
+                times * 5,
+                {
+                    value: payableAmountMint,
+                    maxFeePerGas: gasPrice,
+                    maxPriorityFeePerGas: maxPriorityFeePerGas
+                }
+            )
+            await tx.wait();
+        } catch (e) {
+            throw new MintingError("Minting OFT failed", retries + 1);
+        }
+        print(walletAddress, `   minted successfully!\n`);
+        // console.log(`   minted successfully!\n`);
+    
+        await sleep(10,35, walletAddress);    
+    } else {
+        print(walletAddress, `Already has ${currOFTFormmated} OFT balance on ${chain}`);
     }
-    print(walletAddress, `   minted successfully!\n`);
-    // console.log(`   minted successfully!\n`);
-
-    await sleep(10,35, walletAddress);
 
     print(walletAddress, "Preparing to bridge OFTs...\n");
     // console.log("Preparing to bridge OFTs...\n");
@@ -88,6 +95,7 @@ async function merkleyOFT(privateKey, chain, provider, min, max, retries) {
         [1, 300000] // 1 is version, next argument is gaslimit
     )
 
+    print(walletAddress, "estimating gas fees...")
     const amtBridge = BigNumber.from("5000000000000000000");
     const destChainFees = [];
     for (let i = 0; i < times; i++) {
@@ -101,6 +109,7 @@ async function merkleyOFT(privateKey, chain, provider, min, max, retries) {
         destChainFees.push(fees[0]);
     }
 
+    let numBridged = 0;
     try {
         print(walletAddress, `Sending ${times} transactions...`);
         // console.log(`Sending ${times} transactions...`);
@@ -117,13 +126,14 @@ async function merkleyOFT(privateKey, chain, provider, min, max, retries) {
             await txBridge.wait(); 
             print(walletAddress, `   Successfully Bridged ${i}, tx hash: ${txBridge.hash}`);
             // console.log(`   Successfully Bridged, tx hash: ${txBridge.hash}`);
+            numBridged++;
         }
         print(walletAddress, "Successfully Bridged all!\n");
         // console.log("Successfully Bridged all!");
     } catch (e) {
         print(walletAddress, `Bridge error ${e}`);
         // console.log("bridge error: ", e)
-        throw new BridgingError("Bridge transaction failed", times, 1);
+        throw new BridgingError("Bridge transaction failed", times - numBridged, retries + 1);
     }
 }
 
@@ -157,6 +167,7 @@ async function onlyBridge(privateKey, chain, provider, int, retries) {
         [1, 300000] // 1 is version, next argument is gaslimit
     )
 
+    print(walletAddress, "estimating gas fees...")
     const amtBridge = BigNumber.from("5000000000000000000");
     const destChainFees = [];
     for (let i = 0; i < times; i++) {
@@ -170,6 +181,7 @@ async function onlyBridge(privateKey, chain, provider, int, retries) {
         destChainFees.push(fees[0]);
     }
 
+    let numBridged = 0;
     try {
         print(walletAddress, `Sending ${times} transactions...`);
         // console.log(`Sending ${times} transactions...`);
@@ -186,12 +198,13 @@ async function onlyBridge(privateKey, chain, provider, int, retries) {
             await txBridge.wait();  
             print(walletAddress, `   Successfully Bridged ${i}, tx hash: ${txBridge.hash}`);
             // console.log(`   Successfully Bridged, tx hash: ${txBridge.hash}`);
+            numBridged++;
         }
         print(walletAddress, "Successfully Bridged all!\n");
         // console.log("Successfully Bridged all!");
     } catch (e) {
         console.log("bridge error: ", e)
-        throw new BridgingError("Bridge transaction failed", times, retries + 1);
+        throw new BridgingError("Bridge transaction failed", times - numBridged, retries + 1);
     }
 }
 
