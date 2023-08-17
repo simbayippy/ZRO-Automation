@@ -167,9 +167,9 @@ async function swap(privateKey, type, provider, from, to, retries, toNative, ...
 
     print(walletAddress, 'Swap completed successfully!\n');
     print(walletAddress, 'Updated balances:')
-    print("   Native: ", ethers.utils.formatEther(await provider.getBalance(walletAddress)));
-    print(`   ${tokenIn.symbol}: ${ethers.utils.formatUnits(newBalanceIn, tokenIn.decimals)}`);
-    print(`   ${tokenOut.symbol}: ${ethers.utils.formatUnits(newBalanceOut, tokenOut.decimals)}\n`);
+    print(walletAddress, `   Native: ${ethers.utils.formatEther(await provider.getBalance(walletAddress))}`);
+    print(walletAddress, `   ${tokenIn.symbol}: ${ethers.utils.formatUnits(newBalanceIn, tokenIn.decimals)}`);
+    print(walletAddress, `   ${tokenOut.symbol}: ${ethers.utils.formatUnits(newBalanceOut, tokenOut.decimals)}\n`);
     // console.log('Swap completed successfully!\n');
     // console.log('Updated balances:');
     // console.log("   Native: ", ethers.utils.formatEther(await provider.getBalance(walletAddress)));
@@ -195,12 +195,9 @@ async function swap(privateKey, type, provider, from, to, retries, toNative, ...
         tx = await contractWithSigner.withdraw(newBalanceOut, { 
             value: payableAmount,
             maxFeePerGas: gasPrice,
-            maxPriorityFeePerGas: maxPriorityFeePerGas
+            maxPriorityFeePerGas: maxPriorityFeePerGas,
         });
-        receipt = await tx.wait();
-        if (receipt.status === 0) {
-            throw new SwapError("Unwrap failed", retries + 1);
-        }
+        await tx.wait();
         console.log("Successfully unwraped! Transaction Hash:", tx.hash, "\n");    
     } catch (e) {
         console.log(e);
@@ -213,9 +210,9 @@ async function swap(privateKey, type, provider, from, to, retries, toNative, ...
     ]);
 
     print(walletAddress, 'Updated balances:');
-    print("   Native: ", ethers.utils.formatEther(await provider.getBalance(walletAddress)));
-    print(`   ${tokenIn.symbol}: ${ethers.utils.formatUnits(newBalanceIn, tokenIn.decimals)}`);
-    print(`   ${tokenOut.symbol}: ${ethers.utils.formatUnits(newBalanceOut, tokenOut.decimals)}\n`);
+    print(walletAddress, `   Native: ${ethers.utils.formatEther(await provider.getBalance(walletAddress))}`);
+    print(walletAddress, `   ${tokenIn.symbol}: ${ethers.utils.formatUnits(newBalanceIn, tokenIn.decimals)}`);
+    print(walletAddress, `   ${tokenOut.symbol}: ${ethers.utils.formatUnits(newBalanceOut, tokenOut.decimals)}\n`);
     // console.log('Updated balances:');
     // console.log("   Native: ", ethers.utils.formatEther(await provider.getBalance(walletAddress)));
     // console.log(`   ${tokenIn.symbol}: ${ethers.utils.formatUnits(newBalanceIn, tokenIn.decimals)}`);
@@ -348,7 +345,7 @@ async function checkAllowance(contractIn, chainId, wallet, inAmountStr, provider
     // by default chainid is not set https://ethereum.stackexchange.com/questions/94412/valueerror-code-32000-message-only-replay-protected-eip-155-transac
     approveTxUnsigned.chainId = chainId;
     // estimate gas required to make approve call (not sending it to blockchain either)
-    approveTxUnsigned.gasLimit = BigNumber.from('80000');
+    approveTxUnsigned.gasLimit = BigNumber.from('120000');
     // suggested gas price (increase if you want faster execution)
     approveTxUnsigned.gasPrice = await provider.getGasPrice();
     // nonce is the same as number previous transactions
@@ -358,10 +355,13 @@ async function checkAllowance(contractIn, chainId, wallet, inAmountStr, provider
     const approveTxSigned = await wallet.signTransaction(approveTxUnsigned);
     // submit transaction to blockchain
     try {
-        const submittedTx = await provider.sendTransaction(approveTxSigned);
-        const approveReceipt = await submittedTx.wait();
-        if (approveReceipt.status === 0)
-            throw new SwapError("Approve transaction failed", retries + 1);
+        const gasPrice = await provider.getGasPrice();
+        const maxPriorityFeePerGas = gasPrice.mul(10).div(12);
+        const submittedTx = await provider.sendTransaction(approveTxSigned, {
+            maxFeePerGas: gasPrice,
+            maxPriorityFeePerGas: maxPriorityFeePerGas
+        });
+        await submittedTx.wait();
         print(walletAddress, "   allowance of 999999999999 set\n");
         // console.log("   allowance of 999999999999 set\n");
     } catch (e) {

@@ -97,11 +97,12 @@ async function runPoolUsd(privateKey) {
 
 async function runTest(privateKey) {
     let info = await determineChain(privateKey);
-    attemptMerkleyOFT(privateKey, info.highestChain, info.highestChainProvider, 2,3);
+    attemptPoolUsd(privateKey, info.highestChain, info.highestChainProvider, info.highestStableCoin, info.usdAddr);
 
 }
 
-runTest("0298e92d80bd018005a465545b68b336541d149fca4410f3ac7baab6daf6102d");
+// runTest("cb35bbc65acba40abe0406fda1eb9fd41a9da9f629e8cda699940ae47edc3068")
+
 module.exports = {
     runL2Marathon,
     runMerkley,

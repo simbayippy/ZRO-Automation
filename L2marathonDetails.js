@@ -54,24 +54,27 @@ async function L2marathon(privateKey, chain, provider, min, max, retries) {
     const wallet = new ethers.Wallet(privateKey, provider);
     const walletAddress = wallet.address;
 
-    const times = await getRandomNumber(min,max);
+    const contractL2Marathon = new ethers.Contract(L2marathonAddress, L2marathon_abi, provider);
+    const contractWithSigner = await contractL2Marathon.connect(wallet);
+    print(walletAddress, "Connected to L2Marathon!\n");
+    // console.log("Connected to L2Marathon!\n");
 
     await sleep(0,2);
+    // const currNFTBalance = await contractWithSigner.balanceOf(walletAddress);
+
+    // let times;
+    // let startId;
+    // let endId
+    // if (currNFTBalance <= 2) {
+    const times = await getRandomNumber(min,max);
 
     print(walletAddress, `Number of NFTs to mint: ${times} (randomly chosen)\n`);
     // console.log(`Number of NFTs to mint: ${times} (randomly chosen)\n`);
 
     await sleep(0,2);
 
-    const contractL2Marathon = new ethers.Contract(L2marathonAddress, L2marathon_abi, provider);
-    const contractWithSigner = await contractL2Marathon.connect(wallet);
-
     const payableAmountMint = ethers.utils.parseUnits(fee, "ether").mul(times); // 0.33 ETH in wei
 
-    print(walletAddress, "Connected to L2Marathon!\n");
-    // console.log("Connected to L2Marathon!\n");
-
-    await sleep(0,2);
     print(walletAddress, `Minting ${times} time(s) Cost: ${fee*times} Native + gas`);
     // console.log(`Minting ${times} time(s) Cost: ${fee*times} Native + gas`);
 
@@ -97,13 +100,30 @@ async function L2marathon(privateKey, chain, provider, min, max, retries) {
         }
         print(walletAddress, `Successfully minted! Transaction Hash: ${txMint.hash}\n`);
         // console.log("Successfully minted! Transaction Hash:", txMint.hash + "\n");
+        await sleep(15, 35, walletAddress);
     } catch (e) {
         console.log(e);
         throw new MintingError('Minting NFTs failed', retries + 1);
     }
+    // } else {
+    //     times = currNFTBalance.toNumber();
+    //     const nextId = await contractWithSigner.nextMintId();
+    //     const back100 = nextId.toNumber() - 20;
+    //     print(walletAddress, `moving back 20 from ${nextId}`)
+    //     for (let i = back100; i < nextId; i++) {
+    //         print(walletAddress, await contractWithSigner.ownerOf(i))
+    //         if (await contractWithSigner.ownerOf(i) === walletAddress) {
+    //             startId = i;
+    //             break;
+    //         }
+    //     }
+    //     endId = startId + times;
+    //     console.log(startId);
+    //     console.log(endId)
+    //     print(walletAddress, `Already have ${currNFTBalance} in wallet.`)
+    // }
 
-    await sleep(15, 35, walletAddress);
-
+    await sleep(0,3);
     print(walletAddress, "Preparing to bridge NFTs...\n");
     // console.log("Preparing to bridge NFTs...\n");
 

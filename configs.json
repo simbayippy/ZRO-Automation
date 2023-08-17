@@ -1,7 +1,7 @@
 {
     "NumActions": {
         "Min": 1,
-        "Max": 5
+        "Max": 2
     },
     "SwapAmount": {
         "Normal": {
@@ -13,8 +13,8 @@
             "Max": 1.1
         },
         "StakeStg": {
-            "Min": 1,
-            "Max": 2
+            "Min": 8,
+            "Max": 16
         }
     },
     "MinMax": {

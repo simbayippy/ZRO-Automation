@@ -45,7 +45,7 @@ async function stakeStg(privateKey, chain, provider, inAddr, retries) {
     const contractVeStg = new ethers.Contract(Stargate["StgStakingAddr"][chain], stgStaking_abi, provider);
     const contractWithSigner = await contractVeStg.connect(wallet);
     const currentDate = new Date();
-    const numMonthsStake = await getRandomNumber(5,6);
+    const numMonthsStake = await getRandomNumber(4,6);
     const futureDate = addMonthsToDate(currentDate, numMonthsStake); // Add 5 months to the current date
 
     const unlockTime = Math.floor(futureDate.getTime() / 1000);
@@ -54,9 +54,15 @@ async function stakeStg(privateKey, chain, provider, inAddr, retries) {
     try {
         const gasPrice = await provider.getGasPrice();
         const maxPriorityFeePerGas = gasPrice.mul(10).div(12);
-        const tx = await contractWithSigner.create_lock(stgBalance, unlockTime, {
+        const estimatedGasLimit = await contractWithSigner.estimateGas.create_lock(stgBalance, unlockTime, {
             maxFeePerGas: gasPrice,
             maxPriorityFeePerGas: maxPriorityFeePerGas
+        });
+        const gasLimitWithBuffer = estimatedGasLimit.mul(110).div(100);
+        const tx = await contractWithSigner.create_lock(stgBalance, unlockTime, {
+            maxFeePerGas: gasPrice,
+            maxPriorityFeePerGas: maxPriorityFeePerGas,
+            gasLimit: gasLimitWithBuffer
         });
         await tx.wait();
 
@@ -107,7 +113,9 @@ async function poolUsd(privateKey, chain, provider, usd, usdAddr, retries) {
     const contractPooledUsd = new ethers.Contract(pooledUsdAddr, stgPooledUsd_abi, provider);
     const contractPooledUsdSigner = await contractPooledUsd.connect(wallet);
     let pooledUsdBalance = await contractPooledUsdSigner.balanceOf(walletAddress);
-    let pooledUsdFormatted = ethers.utils.formatEther(pooledUsdBalance);
+    const decimals = await contractPooledUsdSigner.decimals();
+    let pooledUsdFormatted = ethers.utils.formatUnits(pooledUsdBalance, decimals);
+    // let pooledUsdFormatted = ethers.utils.formatEther(pooledUsdBalance);
 
     const poolAddr = Stargate["PoolAddr"][chain]
     const contractPool = new ethers.Contract(poolAddr, stgPoolContract_abi, provider);
@@ -135,18 +143,24 @@ async function poolUsd(privateKey, chain, provider, usd, usdAddr, retries) {
     }
 
     pooledUsdBalance = await contractPooledUsdSigner.balanceOf(walletAddress);
-    pooledUsdFormatted = ethers.utils.formatEther(pooledUsdBalance);
+    // pooledUsdFormatted = ethers.utils.formatEther(pooledUsdBalance);
+    pooledUsdFormatted = ethers.utils.formatUnits(pooledUsdBalance, decimals);
 
     await checkAllowance(pooledUsdAddr, provider, poolAddr, wallet, 0);
 
     try {
         const gasPrice = await provider.getGasPrice();
         const maxPriorityFeePerGas = gasPrice.mul(10).div(12);
+        const estimatedGasLimit = await contractPoolSigner.estimateGas.deposit(poolId - 1, pooledUsdBalance, {
+            maxFeePerGas: gasPrice,
+            maxPriorityFeePerGas: maxPriorityFeePerGas
+        });
+        const gasLimitWithBuffer = estimatedGasLimit.mul(110).div(100);
         print(walletAddress, `   Staking pooled usd...`);
         const txStakingPooledUsd = await contractPoolSigner.deposit(poolId - 1, pooledUsdBalance, {
             maxFeePerGas: gasPrice,
             maxPriorityFeePerGas: maxPriorityFeePerGas,
-            gasLimit: BigNumber.from('110000')
+            gasLimit: gasLimitWithBuffer
         });
         await txStakingPooledUsd.wait();
         print(walletAddress, `   Successfully staked ${pooledUsdFormatted} pooled usd!\n`);

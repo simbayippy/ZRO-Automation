@@ -96,7 +96,7 @@ async function determineChain(privateKey) {
             }
         }
     }
-    print(walletAddress, `\n   Highest balance: ${highestBalance} on ${highestChain} for ${highestStableCoin}`);
+    print(walletAddress, `\n   Highest balance: ${highestBalance}${highestStableCoin} on ${highestChain}`);
     // console.log(`\n   Highest balance: ${highestBalance} on ${highestChain} for ${highestStableCoin}`);
 
     return { highestChain, highestChainProvider, highestBalanceUnformatted, highestStableCoin, usdAddr, nativeAddr };
