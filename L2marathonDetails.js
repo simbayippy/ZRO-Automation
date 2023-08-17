@@ -296,7 +296,4 @@ class BridgingError extends Error {
 
 module.exports = {
     attemptL2Marathon,
-    // L2marathon,
-    MintingError,
-    BridgingError,
 };

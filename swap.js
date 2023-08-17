@@ -382,5 +382,4 @@ class SwapError extends Error {
 module.exports = {
     attemptSwap,
     sleep,
-    SwapError
 };
