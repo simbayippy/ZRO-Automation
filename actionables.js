@@ -17,6 +17,7 @@ async function runL2Marathon(privateKey) {
     let info = await determineChain(privateKey);
     
     if (info.highestChain === "Avax" || info.highestChain === "BSC") {
+        print(walletAddress, `\n${chain} is currently not supported. Choosing random chain to bridge to...`);
         await attemptBridge(privateKey, info.highestChainProvider, info.highestChain, info.highestBalanceUnformatted, info.highestStableCoin);
         info = await determineChain(privateKey);
     }
@@ -34,6 +35,7 @@ async function runMerkley(privateKey) {
     let info = await determineChain(privateKey);
     
     if (info.highestChain === "Avax" || info.highestChain === "BSC") {
+        print(walletAddress, `\n${chain} is currently not supported. Choosing random chain to bridge to...`);
         await attemptBridge(privateKey, info.highestChainProvider, info.highestChain, info.highestBalanceUnformatted, info.highestStableCoin);
         info = await determineChain(privateKey);
     }
@@ -56,6 +58,7 @@ async function runGnosis(privateKey) {
 
     // send to op/arb/poly
     if (info.highestChain === "Avax" || info.highestChain === "BSC") {
+        print(walletAddress, `\n${chain} is currently not supported. Choosing random chain to bridge to...`);
         await attemptBridge(privateKey, info.highestChainProvider, info.highestChain, info.highestBalanceUnformatted, info.highestStableCoin);
     }
 
@@ -77,6 +80,7 @@ async function runStakeStg(privateKey) {
     let info = await determineChain(privateKey);
     
     if (info.highestChain === "Avax" || info.highestChain === "BSC") {
+        print(walletAddress, `\n${chain} is currently not supported. Choosing random chain to bridge to...`);
         await attemptBridge(privateKey, info.highestChainProvider, info.highestChain, info.highestBalanceUnformatted, info.highestStableCoin);
         info = await determineChain(privateKey);
     }
@@ -96,12 +100,14 @@ async function runPoolUsd(privateKey) {
 }
 
 async function runTest(privateKey) {
+    // await runL2Marathon(privateKey)
+    // await runGnosis(privateKey);
     let info = await determineChain(privateKey);
-    attemptPoolUsd(privateKey, info.highestChain, info.highestChainProvider, info.highestStableCoin, info.usdAddr);
-
+    await attemptStakeStg(privateKey, info.highestChain, info.highestChainProvider, info.usdAddr)
+    // await attemptPoolUsd(privateKey, info.highestChain, info.highestChainProvider, info.highestStableCoin, info.usdAddr);
 }
 
-// runTest("cb35bbc65acba40abe0406fda1eb9fd41a9da9f629e8cda699940ae47edc3068")
+// runTest("")
 
 module.exports = {
     runL2Marathon,

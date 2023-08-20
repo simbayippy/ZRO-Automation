@@ -28,14 +28,14 @@ async function runRandomTasksWithPrivateKey(privateKey, tasks) {
     const wallet = new ethers.Wallet(privateKey, provider);
     const walletAddress = wallet.address;
 
-    console.log(walletAddress, "Shuffling tasks array...");
+    print(walletAddress, "Shuffling tasks array...");
     const shuffledFunctions = await shuffleArray(Object.keys(tasks));
-
-    console.log(walletAddress, `Shuffled tasks: ${shuffledFunctions.join(", ")}`);
-
+    await sleep(0,2);
+    print(walletAddress, `Shuffled tasks: ${shuffledFunctions.join(", ")}`);
+    await sleep(0,2);
     // Generate a random number of functions to run (between 1 and 3)
     const numFunctionsToRun = await getRandomNumber(NumActions["Min"], NumActions["Max"]);
-    print(walletAddress, `Number of tasks: ${numFunctionsToRun}\n`);
+    print(walletAddress, `Number of tasks to do from list: ${numFunctionsToRun}\n`);
 
     const functionsToRun = shuffledFunctions.slice(0, numFunctionsToRun); // Use the shuffled function names directly
 
@@ -43,15 +43,18 @@ async function runRandomTasksWithPrivateKey(privateKey, tasks) {
     for (const fnKey of functionsToRun) {
         const fn = tasks[fnKey]; // Get the function using its name from the tasks object
         await fn(privateKey);
-        await sleep(500, 6500, walletAddress); // Sleep for 1 second (adjust the duration as needed)
+        await sleep(300, 1200, walletAddress); // Sleep for 1 second (adjust the duration as needed)
     }
 }
 
 (async () => {
     const privateKeys = await readPrivateKeysFromJsonFile();
     const tasks = {
-        runStakeStg,
-        runPoolUsd
+        runL2Marathon,
+        runMerkley,
+        runGnosis,
+        // runStakeStg,
+        // runPoolUsd
     };
 
     const walletPromises = privateKeys.map(async (privateKey, index) => {

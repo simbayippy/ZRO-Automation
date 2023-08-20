@@ -1,6 +1,6 @@
 const { attemptSwap } = require('./swap');
-const { print, checkAllowance, getRandomNumber, sleep } = require('./utils');
-const { Stargate } = require('./configs.json');
+const { print, checkAllowance, getRandomNumber, sleep, waitForMessageReceived } = require('./utils');
+const { Stargate, RPC, Chain } = require('./configs.json');
 const { ethers } = require("ethers");
 const { BigNumber } = require('@ethersproject/bignumber');
 
@@ -14,27 +14,97 @@ const stgPoolContract_abi = require("./abis/stgPoolContract_abi.json");
 const MAX_RETRIES = 2;
 
 async function attemptStakeStg(privateKey, chain, provider, inAddr) {
+    const wallet = new ethers.Wallet(privateKey, provider);
+    const walletAddress = wallet.address;
     try {
-        stakeStg(privateKey, chain, provider, inAddr, 0);
+        print(walletAddress, "Swapping usd to STG...");
+        await attemptSwap(privateKey, "StakeStg", provider, inAddr, Stargate["StgToken"][chain], false, stgToken_abi);
+
+        if (getRandomNumber(0,1) === 0) {
+            // stake stg directly
+            print(walletAddress, "Staking STG directly...\n");
+            await sleep(0,2);
+            await stakeStg(privateKey, chain, provider, 0);
+        } else {
+            // bridge stg then stake
+            print(walletAddress, "Bridging STG Tokens first...\n");
+            const destChain = await bridgeStg(privateKey, provider, chain, 0);
+            const newProvider = new ethers.providers.JsonRpcProvider(RPC[destChain], Chain[destChain]);
+
+            await stakeStg(privateKey, destChain, newProvider, 0);
+        }
     } catch(e) {
         if (e.retries >= MAX_RETRIES) {
             console.log("Exceeded maximum number of attempts");
             return;
         }
         if (e instanceof StakeError) {
-            await stakeStg(privateKey, chain, provider, inAddr, e.retries);
-        } else {
+            await stakeStg(privateKey, chain, provider, e.retries);
+        } else if (e instanceof BridgingStgError) {
+            await bridgeStg(privateKey, provider, chain, e.retries)
+        }
+        else {
             console.log(e);
         }
     }
 }
 
-async function stakeStg(privateKey, chain, provider, inAddr, retries) {
+async function bridgeStg(privateKey, provider, srcChain, retries){
     const wallet = new ethers.Wallet(privateKey, provider);
     const walletAddress = wallet.address;
 
-    print(walletAddress, "Swapping usd to STG...");
-    await attemptSwap(privateKey, "StakeStg", provider, inAddr, Stargate["StgToken"][chain], false, stgToken_abi);
+    const validChains = ["Arb", "Optimism", "Polygon", "BSC", "Avax"];
+    const index = await getRandomNumber(0,4);
+    const destChain = validChains[index];
+    print(walletAddress, `   ${destChain} selected. Bridging...\n`);
+    await sleep(0,2);
+
+    const srcStgAddr = Stargate["StgToken"][srcChain];
+    const srcChainId = Stargate["ChainId"][srcChain];
+    const destChainId = Stargate["ChainId"][destChain];
+
+    const stgContract = new ethers.Contract(srcStgAddr, stgToken_abi, provider);
+    const contractWithSigner = await stgContract.connect(wallet);
+    print(walletAddress, `Connected to STG Token contract...\n`);
+    const amtToSend = BigNumber.from(await contractWithSigner.balanceOf(walletAddress)); // Convert balanceUSD to string
+    const decimals = await contractWithSigner.decimals();
+    const amtSTGFormatted = ethers.utils.formatUnits(amtToSend, decimals);
+    print(walletAddress, `Amount of STG Tokens: ${amtSTGFormatted}`)
+    const adapterParams = "0x00010000000000000000000000000000000000000000000000000000000000014c08"
+
+    const fees = await contractWithSigner.estimateSendTokensFee(
+        destChainId,            // the destination LayerZero chainId
+        false,                         // _payInZRO
+        adapterParams                  // default '0x' adapterParams, see: Relayer Adapter Param docs
+    )
+
+    try {
+        print(walletAddress, `Bridging STG Tokens to ${destChain}...`);
+        const gasPrice = await provider.getGasPrice();
+        const maxPriorityFeePerGas = gasPrice.mul(10).div(12);
+        const tx = await contractWithSigner.sendTokens(destChainId, walletAddress, amtToSend, ethers.constants.AddressZero, adapterParams, {
+            value: fees[0].mul(11).div(10),
+            maxFeePerGas: gasPrice,
+            maxPriorityFeePerGas: maxPriorityFeePerGas,
+        })
+
+        await tx.wait();
+        print(walletAddress, `Bridged stg tokens to ${destChain}, waiting for it to reach dest chain...`);
+        const done  = await waitForMessageReceived(srcChainId, tx.hash);
+        print(walletAddress, `STG tokens ${done.status}. Moving on to staking...\n`);
+        await sleep(25,60, walletAddress);
+        return destChain;
+    } catch (e) {
+        console.log(e)
+        throw new BridgingStgError("Failed to bridge stg tokens", retries + 1);
+    }
+}
+  
+
+async function stakeStg(privateKey, chain, provider, retries) {
+    const wallet = new ethers.Wallet(privateKey, provider);
+    const walletAddress = wallet.address;
+
     await checkAllowance(Stargate["StgToken"][chain], provider, Stargate["StgStakingAddr"][chain], wallet, 0);
 
     const contractStg = new ethers.Contract(Stargate["StgToken"][chain], stgToken_abi, provider);
@@ -68,7 +138,7 @@ async function stakeStg(privateKey, chain, provider, inAddr, retries) {
 
         print(walletAddress, `Successfully locked ${stgFormatted} STG\n`)
     } catch (e) {
-        print(walletAddress, e);
+        print(walletAddress, `Stake failed! Retrying...\nError: ${e}`);
         throw new StakeError("Staked failed", retries + 1);
     }
 }
@@ -181,6 +251,14 @@ class StakeError extends Error {
       super(message);
       this.name = 'StakeError';
       this.retries = retries;
+    }
+}
+
+class BridgingStgError extends Error {
+    constructor(message, times, id, retries) {
+        super(message);
+        this.name = 'BridgingError';
+        this.retries = retries;
     }
 }
 

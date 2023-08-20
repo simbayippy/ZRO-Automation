@@ -1,30 +1,31 @@
 const { ethers } = require("ethers");
-const { TradeType, Token, CurrencyAmount, Percent, } = require('@uniswap/sdk-core');
-const { Pool, Trade, SwapRouter, Route } = require('@uniswap/v3-sdk');
+const { TradeType, Token, CurrencyAmount, Percent } = require('@uniswap/sdk-core');
+const { Pool, Trade, SwapRouter, Route, computePoolAddress, FeeAmount } = require('@uniswap/v3-sdk');
 const IUniswapV3Pool = require('@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Pool.sol/IUniswapV3Pool.json');
 const IUniswapV3Factory = require('@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Factory.sol/IUniswapV3Factory.json');
-const QuoterABI = require('@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json');
+const IUniswapV3PoolABI = require('@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Pool.sol/IUniswapV3Pool.json');
+
+// const QuoterABI = require('@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json');
+const Quoter = require('@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json')
 const { BigNumber } = require('@ethersproject/bignumber');
 const { SwapAmount } = require('./configs.json');
-const { sleep, getRandomNumber, print, getRandomDecimal } = require('./utils');
+const { sleep, print, getRandomDecimal, checkAllowance } = require('./utils');
 
 const ERC20_abi = require("./abis/ERC20_abi.json");
 const WNative_abi = require("./abis/wnative_abi.json");
-
 // address is the same for Arbitrum, Optimism, Polygon
-const UNISWAP_FACTORY_ADDRESS = '0x1F98431c8aD98523631AE4a59f267346ea31F984';
-const UNISWAP_QUOTER_ADDRESS = '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6'
+const POOL_FACTORY_CONTRACT_ADDRESS = '0x1F98431c8aD98523631AE4a59f267346ea31F984';
+const QUOTER_CONTRACT_ADDRESS = '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6'
 const V3_SWAP_ROUTER_ADDRESS = '0xe592427a0aece92de3edee1f18e0157c05861564';
-
 
 async function attemptSwap(privateKey, type, provider, from, to, toNative, ...vaargs) {
     const wallet = new ethers.Wallet(privateKey, provider);
     const walletAddress = wallet.address;
     try {
         if (vaargs.length > 0) {
-            await swap(privateKey, type, provider, from, to, toNative, 0, ...vaargs);
+            await swap(privateKey, type, provider, from, to, 0, toNative, ...vaargs);
         } else {
-            await swap(privateKey, type, provider, from, to, toNative, 0);
+            await swap(privateKey, type, provider, from, to, 0, toNative);
         }
     } catch (e) {
         if (e.retries >= 2) {
@@ -34,9 +35,9 @@ async function attemptSwap(privateKey, type, provider, from, to, toNative, ...va
         }
         if (e instanceof SwapError) {
             if (vaargs.length > 0) {
-                await swap(privateKey, type, provider, from, to, toNative, e.retries, ...vaargs);
+                await swap(privateKey, type, provider, from, to, e.retries, toNative, ...vaargs);
             } else {
-                await swap(privateKey, type, provider, from, to, toNative, e.retries);
+                await swap(privateKey, type, provider, from, to, e.retries, toNative);
             }
         } else {
             // console.log(e);
@@ -59,34 +60,34 @@ async function swap(privateKey, type, provider, from, to, retries, toNative, ...
 
     // swapping USDC.e -> weth -> unwrap to eth
     const contractIn = new ethers.Contract(from, ERC20_abi, provider);
-
     const contractOut = new ethers.Contract(to, toAbi, provider);
-    const balanceEth = await provider.getBalance(walletAddress);
 
+    const balanceEth = await provider.getBalance(walletAddress);
     print(walletAddress, "Checking balance of wallet...");
     print(walletAddress, `Native balance: ${ethers.utils.formatEther(balanceEth)}`);
     // console.log("Checking balance of wallet...")
     // console.log("   Native balance: ",  ethers.utils.formatEther(balanceEth))
 
-    const balanceWNative = await contractOut.balanceOf(walletAddress);
-    const decimalsWNative = await contractOut.decimals();
-    const WNativeSymbol = await contractOut.symbol();
-    print(walletAddress, `   ${WNativeSymbol} balance: ${balanceWNative}`);
-    // console.log(`   ${WNativeSymbol} balance: ${balanceWNative}`);
-    
-    const balanceUSD = await contractIn.balanceOf(walletAddress);
-    const decimalsUSD = await contractIn.decimals();
-    const formattedBalance = ethers.utils.formatUnits(balanceUSD, decimalsUSD);
-    const USDSymbol = await contractIn.symbol()
-    print(walletAddress, `   ${USDSymbol} balance: ${formattedBalance}`);
-    // console.log(`   ${USDSymbol} balance: ${formattedBalance}\n`);
+    const balanceIn = await contractIn.balanceOf(walletAddress);
+    const decimalsIn = await contractIn.decimals();
+    const formattedBalance = ethers.utils.formatUnits(balanceIn, decimalsIn);
+    const inSymbol = await contractIn.symbol()
+    print(walletAddress, `   ${inSymbol} balance: ${formattedBalance}`);
+    // console.log(`   ${inSymbol} balance: ${formattedBalance}\n`);
 
+    const balanceOut = await contractOut.balanceOf(walletAddress);
+    const decimalsOut = await contractOut.decimals();
+    const balanceOutFormatted = ethers.utils.formatUnits(balanceOut, decimalsOut);
+    const outSymbol = await contractOut.symbol();
+    print(walletAddress, `   ${outSymbol} balance: ${balanceOutFormatted}`);
+    // console.log(`   ${outSymbol} balance: ${balanceOut}`);
+    
     await sleep(0,2);
 
     const network = await provider.getNetwork();
     // uniswap
-    const tokenIn = new Token(network.chainId, from, decimalsUSD, USDSymbol);
-    const tokenOut = new Token(network.chainId, to, decimalsWNative, WNativeSymbol);
+    const tokenIn = new Token(network.chainId, from, decimalsIn, inSymbol);
+    const tokenOut = new Token(network.chainId, to, decimalsOut, outSymbol);
 
     if (parseFloat(formattedBalance) < parseFloat(inAmountStr)) {
         print(walletAddress, `Error: not enough ${tokenIn.symbol}. Have: ${formattedBalance}, need: ${inAmountStr}\nTop up wallet ${walletAddress}`);
@@ -106,8 +107,6 @@ async function swap(privateKey, type, provider, from, to, retries, toNative, ...
 
     const approxAmountOut = await getQuote(amountIn, tokenIn, tokenOut, pool, inAmountStr, provider);
 
-    await sleep(0,2);
-
     // ============= PART 4 --- Loading a swap route
     print(walletAddress, "Creating swap route based on quote...")
     // console.log("Creating swap route based on quote...");
@@ -117,9 +116,10 @@ async function swap(privateKey, type, provider, from, to, retries, toNative, ...
     await sleep(0,2);
 
     // // ============= PART 5 --- Making actual swap
-    print(walletAddress, "Checking allowance...");
+    // print(walletAddress, "Checking allowance...");
     // console.log("Checking allowance..."); 
-    await checkAllowance(contractIn, network.chainId, wallet, inAmountStr, provider, retries);
+    // await checkAllowance(contractIn, network.chainId, wallet, inAmountStr, provider, retries);
+    await checkAllowance(from, provider, V3_SWAP_ROUTER_ADDRESS, wallet, 0);
 
     await sleep(5,25, walletAddress);
     print(walletAddress, "Sending swap...\n");
@@ -142,7 +142,7 @@ async function swap(privateKey, type, provider, from, to, retries, toNative, ...
         from: walletAddress,
         maxFeePerGas: gasPrice,
         maxPriorityFeePerGas: maxPriorityFeePerGas,
-        gasLimit: BigNumber.from('200000')
+        // gasLimit: BigNumber.from('1000000')
     }
 
     try {
@@ -170,21 +170,17 @@ async function swap(privateKey, type, provider, from, to, retries, toNative, ...
     print(walletAddress, `   Native: ${ethers.utils.formatEther(await provider.getBalance(walletAddress))}`);
     print(walletAddress, `   ${tokenIn.symbol}: ${ethers.utils.formatUnits(newBalanceIn, tokenIn.decimals)}`);
     print(walletAddress, `   ${tokenOut.symbol}: ${ethers.utils.formatUnits(newBalanceOut, tokenOut.decimals)}\n`);
-    // console.log('Swap completed successfully!\n');
-    // console.log('Updated balances:');
-    // console.log("   Native: ", ethers.utils.formatEther(await provider.getBalance(walletAddress)));
-    // console.log(`   ${tokenIn.symbol}: ${ethers.utils.formatUnits(newBalanceIn, tokenIn.decimals)}`);
-    // console.log(`   ${tokenOut.symbol}: ${ethers.utils.formatUnits(newBalanceOut, tokenOut.decimals)}\n`);
 
     await sleep(5,22, walletAddress);
 
     // if native then need to unwrap, else return immediately
     if (!toNative) {
+        print(walletAddress, `DONE. Not swapping to native...`);
         return;
     }
 
-    print(walletAddress, `Unwrapping ${WNativeSymbol} to Native...\n`);
-    // console.log(`Unwrapping ${WNativeSymbol} to Native...\n`);
+    print(walletAddress, `Unwrapping ${outSymbol} to Native...\n`);
+    // console.log(`Unwrapping ${outSymbol} to Native...\n`);
 
     const contractWithSigner = await contractOut.connect(wallet);
     const payableAmount = ethers.utils.parseUnits("0", "ether"); // 0
@@ -219,11 +215,12 @@ async function swap(privateKey, type, provider, from, to, retries, toNative, ...
     // console.log(`   ${tokenOut.symbol}: ${ethers.utils.formatUnits(newBalanceOut, tokenOut.decimals)}\n`);
 
     print(walletAddress, "Swapping done.\n");
+    await sleep(10,35)
     // console.log("Swapping done.\n")
 }
 
 async function uniswapPool(tokenIn, tokenOut, provider) {
-    const factoryContract = new ethers.Contract(UNISWAP_FACTORY_ADDRESS, IUniswapV3Factory.abi, provider);
+    const factoryContract = new ethers.Contract(POOL_FACTORY_CONTRACT_ADDRESS, IUniswapV3Factory.abi, provider);
     
     // loading pool smart contract address
     const poolAddress = await factoryContract.getPool(
@@ -293,7 +290,7 @@ async function uniswapPool(tokenIn, tokenOut, provider) {
 }
 
 async function getQuote(amountIn, tokenIn, tokenOut, pool, inAmountStr, provider) {
-    const quoterContract = new ethers.Contract(UNISWAP_QUOTER_ADDRESS, QuoterABI.abi, provider);
+    const quoterContract = new ethers.Contract(QUOTER_CONTRACT_ADDRESS, Quoter.abi, provider);
     const quotedAmountOut = await quoterContract.callStatic.quoteExactInputSingle(
         tokenIn.address,
         tokenOut.address,
@@ -327,49 +324,51 @@ async function createRoute(pool, tokenIn, tokenOut, amountIn, approxAmountOut) {
     return uncheckedTrade;
 }
 
-async function checkAllowance(contractIn, chainId, wallet, inAmountStr, provider, retries) {
-    const walletAddress = wallet.address;
-    const allowanceIn = await contractIn.allowance(walletAddress, V3_SWAP_ROUTER_ADDRESS);
-    const decimals = await contractIn.decimals();
-    if ((allowanceIn / (10**decimals)) > inAmountStr) {
-        print(walletAddress, "   allowance already set\n");
-        // console.log("   allowance already set\n");
-        return;
-    }
-    print(walletAddress, `   allowance not set. setting allowance...`);
-    // console.log(`   allowance not set. setting allowance...`)
-    const amtToApprove = getRandomNumber(999999999, 999999999999)
+// replaced by checkAllowance from utils
 
-    // const amtToApprove = 999999999999;
-    const approveTxUnsigned = await contractIn.populateTransaction.approve(V3_SWAP_ROUTER_ADDRESS, amtToApprove);
-    // by default chainid is not set https://ethereum.stackexchange.com/questions/94412/valueerror-code-32000-message-only-replay-protected-eip-155-transac
-    approveTxUnsigned.chainId = chainId;
-    // estimate gas required to make approve call (not sending it to blockchain either)
-    approveTxUnsigned.gasLimit = BigNumber.from('120000');
-    // suggested gas price (increase if you want faster execution)
-    approveTxUnsigned.gasPrice = await provider.getGasPrice();
-    // nonce is the same as number previous transactions
-    approveTxUnsigned.nonce = await provider.getTransactionCount(walletAddress);
+// async function checkAllowance(contractIn, chainId, wallet, inAmountStr, provider, retries) {
+//     const walletAddress = wallet.address;
+//     const allowanceIn = await contractIn.allowance(walletAddress, V3_SWAP_ROUTER_ADDRESS);
+//     const decimals = await contractIn.decimals();
+//     if ((allowanceIn / (10**decimals)) > inAmountStr) {
+//         print(walletAddress, "   allowance already set\n");
+//         // console.log("   allowance already set\n");
+//         return;
+//     }
+//     print(walletAddress, `   allowance not set. setting allowance...`);
+//     // console.log(`   allowance not set. setting allowance...`)
+//     const amtToApprove = getRandomNumber(999999999, 999999999999)
 
-    // sign transaction by our signer
-    const approveTxSigned = await wallet.signTransaction(approveTxUnsigned);
-    // submit transaction to blockchain
-    try {
-        const gasPrice = await provider.getGasPrice();
-        const maxPriorityFeePerGas = gasPrice.mul(10).div(12);
-        const submittedTx = await provider.sendTransaction(approveTxSigned, {
-            maxFeePerGas: gasPrice,
-            maxPriorityFeePerGas: maxPriorityFeePerGas
-        });
-        await submittedTx.wait();
-        print(walletAddress, "   allowance of 999999999999 set\n");
-        // console.log("   allowance of 999999999999 set\n");
-    } catch (e) {
-        print(walletAddress, e);
-        // console.log(e)
-        throw new SwapError("Approve transaction failed", retries + 1);
-    }
-}
+//     // const amtToApprove = 999999999999;
+//     const approveTxUnsigned = await contractIn.populateTransaction.approve(V3_SWAP_ROUTER_ADDRESS, amtToApprove);
+//     // by default chainid is not set https://ethereum.stackexchange.com/questions/94412/valueerror-code-32000-message-only-replay-protected-eip-155-transac
+//     approveTxUnsigned.chainId = chainId;
+//     // estimate gas required to make approve call (not sending it to blockchain either)
+//     approveTxUnsigned.gasLimit = BigNumber.from('300000');
+//     // suggested gas price (increase if you want faster execution)
+//     approveTxUnsigned.gasPrice = await provider.getGasPrice();
+//     // nonce is the same as number previous transactions
+//     approveTxUnsigned.nonce = await provider.getTransactionCount(walletAddress);
+
+//     // sign transaction by our signer
+//     const approveTxSigned = await wallet.signTransaction(approveTxUnsigned);
+//     // submit transaction to blockchain
+//     try {
+//         const gasPrice = await provider.getGasPrice();
+//         const maxPriorityFeePerGas = gasPrice.mul(10).div(12);
+//         const submittedTx = await provider.sendTransaction(approveTxSigned, {
+//             maxFeePerGas: gasPrice,
+//             maxPriorityFeePerGas: maxPriorityFeePerGas
+//         });
+//         await submittedTx.wait();
+//         print(walletAddress, "   allowance of 999999999999 set\n");
+//         // console.log("   allowance of 999999999999 set\n");
+//     } catch (e) {
+//         print(walletAddress, e);
+//         // console.log(e)
+//         throw new SwapError("Approve transaction failed", retries + 1);
+//     }
+// }
 
 class SwapError extends Error {
     constructor(message, retries) {

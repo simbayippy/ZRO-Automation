@@ -96,8 +96,8 @@ async function determineChain(privateKey) {
             }
         }
     }
-    print(walletAddress, `\n   Highest balance: ${highestBalance}${highestStableCoin} on ${highestChain}`);
-    // console.log(`\n   Highest balance: ${highestBalance} on ${highestChain} for ${highestStableCoin}`);
+    print(walletAddress, `\n   Highest balance: ${highestBalance}${highestStableCoin} on ${highestChain}\n`);
+    await sleep(0,2);
 
     return { highestChain, highestChainProvider, highestBalanceUnformatted, highestStableCoin, usdAddr, nativeAddr };
 }
@@ -114,14 +114,11 @@ async function attemptBridge(privateKey, provider, chain, balance, usd) {
   const wallet = new ethers.Wallet(privateKey, provider);
   const walletAddress = wallet.address;
   try {
-      await sleep(1,2);
       const validChains = ["Arb", "Optimism", "Polygon"];
-      print(walletAddress, `\n${chain} is currently not supported. Choosing random chain to bridge to...`);
-      // console.log(`\n${chain} is currently not supported. Choosing random chain to bridge to...`);
-      await sleep(1,2);
       const index = await getRandomNumber(0,2);
       const chainToUse = validChains[index];
       print(walletAddress, `   ${chainToUse} selected. Bridging...\n`);
+      await sleep(0,2);
       // console.log(`   ${chainToUse} selected. Bridging...\n`);
       await bridge(privateKey, provider, chain, balance, usd, chainToUse, 0);
 
@@ -191,8 +188,7 @@ async function bridge(privateKey, provider, srcChain, balanceUSD, srcUSD, destCh
       // console.log(`   Waiting for funds to reach destination. This may take awhile...\n`)
       const done  = await waitForMessageReceived(sgSrcChainId, tx.hash);
       print(walletAddress, `${done.status}. Moving onto next steps...\n`);
-      // console.log(`${done.status}. Moving onto next steps...\n`);
-      await sleep(20,60, walletAddress)
+
     } catch (e) {
       print(walletAddress, `Bridge failed: ${e}`);
       throw new USDBridgingError("USD Bridge failed, ", provider, srcChain, srcUSD, destChain, retries + 1);
@@ -264,5 +260,6 @@ module.exports = {
     attemptBridge,
     print,
     checkAllowance,
+    waitForMessageReceived
     // USDBridgingError,
 };
