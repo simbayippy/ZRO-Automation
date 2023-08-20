@@ -20,7 +20,7 @@ async function attemptStakeStg(privateKey, chain, provider, inAddr) {
         print(walletAddress, "Swapping usd to STG...");
         await attemptSwap(privateKey, "StakeStg", provider, inAddr, Stargate["StgToken"][chain], false, stgToken_abi);
 
-        if (getRandomNumber(0,1) === 0) {
+        if (getRandomNumber(0,2) === 0) {
             // stake stg directly
             print(walletAddress, "Staking STG directly...\n");
             await sleep(0,2);
