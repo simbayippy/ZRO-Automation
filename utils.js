@@ -260,6 +260,5 @@ module.exports = {
     attemptBridge,
     print,
     checkAllowance,
-    waitForMessageReceived
     // USDBridgingError,
 };

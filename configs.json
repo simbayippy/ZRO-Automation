@@ -1,11 +1,11 @@
 {
     "NumActions": {
         "Min": 1,
-        "Max": 2
+        "Max": 3
     },
     "SwapAmount": {
         "Normal": {
-            "Min": 4,
+            "Min": 3.5,
             "Max": 4.5
         },
         "Refill": {
@@ -20,7 +20,7 @@
     "MinMax": {
         "Normal": {
             "Min": 3,
-            "Max": 7
+            "Max": 6
         },
         "Gnosis": {
             "Min": 1,
@@ -72,7 +72,9 @@
         "StgStakingAddr": {
             "Arb": "0xfBd849E6007f9BC3CC2D6Eb159c045B8dc660268",
             "Optimism": "0x43d2761ed16C89A2C4342e2B16A3C61Ccf88f05B",
-            "Polygon": "0x3AB2DA31bBD886A7eDF68a6b60D3CDe657D3A15D"
+            "Polygon": "0x3AB2DA31bBD886A7eDF68a6b60D3CDe657D3A15D",
+            "BSC": "0xD4888870C8686c748232719051b677791dBDa26D",
+            "Avax": "0xCa0F57D295bbcE554DA2c07b005b7d6565a58fCE"
         },
         "UsdPooled": {
             "USDC": {
@@ -112,6 +114,23 @@
             "Optimism": "0x20279b6d57Ba6D3eF852f34800e43e39d46d6487",
             "Polygon": "0x70ea00ab512d13dac5001c968f8d2263d179e2d2",
             "Gnosis": "0x54b3297e1C739fe62be5c00473A2e6bb78adB0Ef"
+        }
+    },
+    "AngleProtocol": {
+        "AgEur": {
+            "Arb": "0xfa5ed56a203466cbbc2430a43c66b9d8723528e7",
+            "Optimism": "0x9485aca5bbbe1667ad97c7fe7c4531a624c8b1ed",
+            "Polygon": "0xe0b52e49357fd4daf2c15e02058dce6bc0057db4",
+            "BSC": "0x1111111254eeb25477b68fb85ed929f73a960582",
+            "Avax": "0xaec8318a9a59baeb39861d10ff6c7f7bf1f96c57"
+        },
+        "L0Bridge": {
+            "Arb": "0x16cd38b1B54E7abf307Cb2697E2D9321e843d5AA",
+            "Optimism": "0x840b25c87b626a259ca5ac32124fa752f0230a72",
+            "Polygon": "0x0c1ebbb61374da1a8c57cb6681bf27178360d36f",
+            "BSC": "0xe9f183fc656656f1f17af1f2b0df79b8ff9ad8ed",
+            "Avax": "0x14c00080f97b9069ae3b4eb506ee8a633f8f5434"
+
         }
     },
     "StableCoins": {

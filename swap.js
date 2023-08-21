@@ -3,8 +3,6 @@ const { TradeType, Token, CurrencyAmount, Percent } = require('@uniswap/sdk-core
 const { Pool, Trade, SwapRouter, Route, computePoolAddress, FeeAmount } = require('@uniswap/v3-sdk');
 const IUniswapV3Pool = require('@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Pool.sol/IUniswapV3Pool.json');
 const IUniswapV3Factory = require('@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Factory.sol/IUniswapV3Factory.json');
-const IUniswapV3PoolABI = require('@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Pool.sol/IUniswapV3Pool.json');
-
 // const QuoterABI = require('@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json');
 const Quoter = require('@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json')
 const { BigNumber } = require('@ethersproject/bignumber');
@@ -222,11 +220,19 @@ async function swap(privateKey, type, provider, from, to, retries, toNative, ...
 async function uniswapPool(tokenIn, tokenOut, provider) {
     const factoryContract = new ethers.Contract(POOL_FACTORY_CONTRACT_ADDRESS, IUniswapV3Factory.abi, provider);
     
+    const network = await provider.getNetwork();
+    const chainId = network.chainId;
+    let fee;
+    if (chainId === 137 || chainId === 110) {
+        fee = FeeAmount.HIGH
+    } else {
+        fee = FeeAmount.MEDIUM
+    }
     // loading pool smart contract address
     const poolAddress = await factoryContract.getPool(
         tokenIn.address,
         tokenOut.address,
-        3000 // commission - 0.3%
+        FeeAmount.MEDIUM // commission - 0.3%
     ); 
 
     if (Number(poolAddress).toString() === "0") {// there is no such pool for provided In-Out tokens.

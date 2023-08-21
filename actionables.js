@@ -2,6 +2,7 @@ const { attemptSwap } = require('./swap');
 const { attemptL2Marathon } = require('./L2marathonDetails');
 const { gnosis, refillGas } = require("./gnosis");
 const { attemptMerkleyOFT } = require("./merkley");
+const { attemptAngleProtocol } = require("./angleProtocol");
 const { attemptStakeStg, attemptPoolUsd } = require("./stakeStgUsd");
 const { determineChain, attemptBridge, print } = require('./utils');
 const { MinMax, RPC, Chain } = require('./configs.json');
@@ -17,7 +18,7 @@ async function runL2Marathon(privateKey) {
     let info = await determineChain(privateKey);
     
     if (info.highestChain === "Avax" || info.highestChain === "BSC") {
-        print(walletAddress, `\n${chain} is currently not supported. Choosing random chain to bridge to...`);
+        print(walletAddress, `\n${info.highestChain} is currently not supported. Choosing random chain to bridge to...`);
         await attemptBridge(privateKey, info.highestChainProvider, info.highestChain, info.highestBalanceUnformatted, info.highestStableCoin);
         info = await determineChain(privateKey);
     }
@@ -35,7 +36,7 @@ async function runMerkley(privateKey) {
     let info = await determineChain(privateKey);
     
     if (info.highestChain === "Avax" || info.highestChain === "BSC") {
-        print(walletAddress, `\n${chain} is currently not supported. Choosing random chain to bridge to...`);
+        print(walletAddress, `\n${info.highestChain} is currently not supported. Choosing random chain to bridge to...`);
         await attemptBridge(privateKey, info.highestChainProvider, info.highestChain, info.highestBalanceUnformatted, info.highestStableCoin);
         info = await determineChain(privateKey);
     }
@@ -58,7 +59,7 @@ async function runGnosis(privateKey) {
 
     // send to op/arb/poly
     if (info.highestChain === "Avax" || info.highestChain === "BSC") {
-        print(walletAddress, `\n${chain} is currently not supported. Choosing random chain to bridge to...`);
+        print(walletAddress, `\n${info.highestChain} is currently not supported. Choosing random chain to bridge to...`);
         await attemptBridge(privateKey, info.highestChainProvider, info.highestChain, info.highestBalanceUnformatted, info.highestStableCoin);
     }
 
@@ -71,6 +72,22 @@ async function runGnosis(privateKey) {
     await refillGas(privateKey, chain, gnosisProvider, MinMax["Gnosis"]["Min"], MinMax["Gnosis"]["Max"]);
 }
 
+async function runAngleProtocol(privateKey) {
+    const provider = new ethers.providers.JsonRpcProvider(RPC["Polygon"], Chain["Polygon"]);
+    const wallet = new ethers.Wallet(privateKey, provider);
+    const walletAddress = wallet.address;
+    print(walletAddress, "running Angle protocol full");
+
+    let info = await determineChain(privateKey);
+    if (info.highestChain === "Avax" || info.highestChain === "BSC") {
+        print(walletAddress, `\n${info.highestChain} is currently not supported. Choosing random chain to bridge to...`);
+        await attemptBridge(privateKey, info.highestChainProvider, info.highestChain, info.highestBalanceUnformatted, info.highestStableCoin);
+        info = await determineChain(privateKey);
+    }
+
+    await attemptAngleProtocol(privateKey, info.highestChain, info.highestChainProvider, info.usdAddr)
+}
+
 async function runStakeStg(privateKey) {
     const provider = new ethers.providers.JsonRpcProvider(RPC["BSC"], Chain["BSC"]);
     const wallet = new ethers.Wallet(privateKey, provider);
@@ -80,7 +97,7 @@ async function runStakeStg(privateKey) {
     let info = await determineChain(privateKey);
     
     if (info.highestChain === "Avax" || info.highestChain === "BSC") {
-        print(walletAddress, `\n${chain} is currently not supported. Choosing random chain to bridge to...`);
+        print(walletAddress, `\n${info.highestChain} is currently not supported. Choosing random chain to bridge to...`);
         await attemptBridge(privateKey, info.highestChainProvider, info.highestChain, info.highestBalanceUnformatted, info.highestStableCoin);
         info = await determineChain(privateKey);
     }
@@ -107,11 +124,12 @@ async function runTest(privateKey) {
     // await attemptPoolUsd(privateKey, info.highestChain, info.highestChainProvider, info.highestStableCoin, info.usdAddr);
 }
 
-// runTest("")
+// runTest("7470199b35c2c6a3d37a1708a8bf9797583d8a92e86320e4bed88c0587974b65")
 
 module.exports = {
     runL2Marathon,
     runMerkley,
+    runAngleProtocol,
     runGnosis,
     runStakeStg,
     runPoolUsd

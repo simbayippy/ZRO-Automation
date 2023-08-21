@@ -1,5 +1,6 @@
 const { attemptSwap } = require('./swap');
-const { print, checkAllowance, getRandomNumber, sleep, waitForMessageReceived } = require('./utils');
+const { print, checkAllowance, getRandomNumber, sleep } = require('./utils');
+const {waitForMessageReceived} = require('@layerzerolabs/scan-client');
 const { Stargate, RPC, Chain } = require('./configs.json');
 const { ethers } = require("ethers");
 const { BigNumber } = require('@ethersproject/bignumber');
@@ -18,6 +19,10 @@ async function attemptStakeStg(privateKey, chain, provider, inAddr) {
     const walletAddress = wallet.address;
     try {
         print(walletAddress, "Swapping usd to STG...");
+
+        print(walletAddress, chain);
+        print(walletAddress, Stargate["StgToken"][chain])
+        // await sleep(100,200)
         await attemptSwap(privateKey, "StakeStg", provider, inAddr, Stargate["StgToken"][chain], false, stgToken_abi);
 
         if (getRandomNumber(0,2) === 0) {
@@ -28,6 +33,7 @@ async function attemptStakeStg(privateKey, chain, provider, inAddr) {
         } else {
             // bridge stg then stake
             print(walletAddress, "Bridging STG Tokens first...\n");
+            await sleep(0,2);
             const destChain = await bridgeStg(privateKey, provider, chain, 0);
             const newProvider = new ethers.providers.JsonRpcProvider(RPC[destChain], Chain[destChain]);
 
@@ -255,9 +261,9 @@ class StakeError extends Error {
 }
 
 class BridgingStgError extends Error {
-    constructor(message, times, id, retries) {
+    constructor(message, retries) {
         super(message);
-        this.name = 'BridgingError';
+        this.name = 'BridgingStgError';
         this.retries = retries;
     }
 }

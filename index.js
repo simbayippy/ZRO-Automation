@@ -1,6 +1,6 @@
 const fs = require('fs');
 const { ethers } = require("ethers");
-const { runL2Marathon, runMerkley, runGnosis, runStakeStg, runPoolUsd } = require("./actionables");
+const { runL2Marathon, runMerkley, runAngleProtocol, runGnosis, runStakeStg, runPoolUsd } = require("./actionables");
 const { sleep, getRandomNumber, print } = require('./utils');
 const { NumActions, RPC, Chain } = require('./configs.json');
 const crypto = require('crypto');
@@ -50,16 +50,17 @@ async function runRandomTasksWithPrivateKey(privateKey, tasks) {
 (async () => {
     const privateKeys = await readPrivateKeysFromJsonFile();
     const tasks = {
-        runL2Marathon,
-        runMerkley,
-        runGnosis,
-        // runStakeStg,
+        // runL2Marathon,
+        // runMerkley,
+        // runAngleProtocol,
+        // runGnosis,
+        runStakeStg,
         // runPoolUsd
     };
 
     const walletPromises = privateKeys.map(async (privateKey, index) => {
         if (index > 0) 
-            await sleep(1300,5000); // Sleep between wallets
+            await sleep(400,3000); // Sleep between wallets
         
         await runRandomTasksWithPrivateKey(privateKey, tasks).catch(error => {
             console.error(`Error running tasks for private key}:`, error);
